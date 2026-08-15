@@ -145,6 +145,7 @@ html{scroll-behavior:smooth}
 <div class="form-group"><label>Betrag (€)</label><input type="number" id="visit-amount" value="0" step="0.01" min="0"></div>
 <div class="form-group"><label>Bezahlt (€)</label><input type="number" id="visit-paid" value="0" step="0.01" min="0"></div>
 <div class="form-group"><label>Notiz</label><input type="text" id="visit-note" placeholder="z.B. Salon Berlin-Mitte"></div>
+<div class="form-group"><label>📷 Beweis-Foto</label><div style="display:flex;gap:8px"><button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('proof-camera').click()">📷 Kamera</button><button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('proof-gallery').click()">🖼️ Galerie</button></div><input type="file" id="proof-camera" accept="image/*" capture="environment" style="display:none" onchange="addProofPhoto(event)"><input type="file" id="proof-gallery" accept="image/*" multiple style="display:none" onchange="addProofPhoto(event)"><div class="photo-grid" id="proof-preview"></div></div>
 <button class="btn btn-primary" onclick="saveVisit(event)">💾 Speichern</button>
 </div>
 </section>
@@ -267,7 +268,7 @@ html{scroll-behavior:smooth}
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 let db={customers:[],visits:[],payments:[]};
-let tempPhotos=[];let selectedPaymentMethod='bar';let map=null;let mapMarkers=[];let currentFilter='all';
+let tempPhotos=[];let selectedPaymentMethod='bar';let map=null;let mapMarkers=[];let currentFilter='all';let tempProofPhotos=[];
 const RECENT_DAYS=14;const WARN_DAYS=28;
 function init(){
   loadData();detectDuplicates();initSignatureCanvas();setTodayDate();updateHeaderStats();renderRecent();
@@ -370,7 +371,7 @@ function renderRecent(){
   }).join('');
   renderPerformanceSummary();renderMonthView();
 }
-function openNewCustomer(){document.getElementById('cust-id').value='';document.getElementById('cust-name').value='';document.getElementById('cust-shop').value='';document.getElementById('cust-phone').value='';document.getElementById('cust-email').value='';document.getElementById('cust-address').value='';document.getElementById('cust-role').value='chef';document.getElementById('cust-price1').value='0';document.getElementById('cust-price2').value='0';document.getElementById('cust-price3').value='0';document.getElementById('cust-stand').value='0';document.getElementById('cust-recurring').value='no';tempPhotos=[];renderPhotoPreview();document.getElementById('biz-preview').innerHTML='';clearSignature();openModal('modal-customer')}
+function openNewCustomer(){document.getElementById('cust-id').value='';document.getElementById('cust-name').value='';document.getElementById('cust-shop').value='';document.getElementById('cust-phone').value='';document.getElementById('cust-email').value='';document.getElementById('cust-address').value='';document.getElementById('cust-role').value='chef';document.getElementById('cust-price1').value='0';document.getElementById('cust-price2').value='0';document.getElementById('cust-price3').value='0';document.getElementById('cust-stand').value='0';document.getElementById('cust-recurring').value='no';document.getElementById('cust-category').value='';tempPhotos=[];renderPhotoPreview();document.getElementById('biz-preview').innerHTML='';clearSignature();openModal('modal-customer')}
 function saveCustomer(e){
   e.preventDefault();
   const id=document.getElementById('cust-id').value||Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -397,8 +398,78 @@ function saveCustomer(e){
 }
 function addPhoto(e){const files=Array.from(e.target.files);files.forEach(function(file){const reader=new FileReader();reader.onload=function(ev){tempPhotos.push(ev.target.result);renderPhotoPreview()};reader.readAsDataURL(file)});e.target.value=''}
 function renderPhotoPreview(){const el=document.getElementById('photo-preview');if(!el)return;el.innerHTML=tempPhotos.map(function(src,i){return '<img src="'+src+'" onclick="viewPhoto(\''+i+'\')">'}).join('')}
+function addProofPhoto(e){
+  const files=Array.from(e.target.files);
+  const preview=document.getElementById('proof-preview');
+  files.forEach(function(file){
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      tempProofPhotos.push(ev.target.result);
+      renderProofPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value='';
+}
+function renderProofPreview(){
+  const el=document.getElementById('proof-preview');
+  if(!el)return;
+  el.innerHTML=tempProofPhotos.map(function(src,i){return '<img src="'+src+'" style="width:100%;border-radius:8px">'}).join('');
+}
 function viewPhoto(idx){document.getElementById('lightbox-img').src=tempPhotos[idx];openModal('modal-lightbox')}
-function addBizCard(e){const files=Array.from(e.target.files);const cid=document.getElementById('cust-id').value||'new';const preview=document.getElementById('biz-preview');Array.from(e.target.files).forEach(function(file){const reader=new FileReader();reader.onload=function(ev){preview.innerHTML+='<img src="'+ev.target.result+'" style="width:120px;border-radius:8px;margin-top:4px">'};reader.readAsDataURL(file)});e.target.value=''}
+function addBizCard(e){
+  const files=Array.from(e.target.files);
+  const preview=document.getElementById('biz-preview');
+  files.forEach(function(file){
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      preview.innerHTML+='<img src="'+ev.target.result+'" style="width:120px;border-radius:8px;margin-top:4px">';
+      if(typeof Tesseract==='undefined'){
+        showToast('OCR-Modul nicht geladen');return;
+      }
+      showToast('🔍 Visitenkarte wird gelesen…');
+      Tesseract.recognize(ev.target.result,'deu+eng',{logger:function(m){if(m.status==='recognizing text'){const pct=Math.round((m.progress||0)*100);showToast('📝 Texterkennung… '+pct+'%')}}}).then(function(result){
+        extractBizCardData(result.data.text.trim());
+      }).catch(function(err){
+        showToast('❌ OCR fehlgeschlagen: '+err.message);
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value='';
+}
+function extractBizCardData(text){
+  const lines=text.split('\n').filter(function(l){return l.trim()});
+  let name='',shop='',phone='',email='',address='';
+  const phoneMatch=text.match(/(\+?\d{1,4}[\s\-/]?\(?\d{1,5}\)?[\s\-/]?\d{3,}[\s\-/]?\d{3,}/);
+  if(phoneMatch)phone=phoneMatch[0].replace(/\s+/g,' ').trim();
+  const emailMatch=text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if(emailMatch)email=emailMatch[0];
+  const addrMatch=text.match(/([A-Za-zäöüÄÖÜß]+(?:straße|weg|platz|allee|gasse|ring|boulevard)[A-Za-zäöüÄÖÜß\s]*\d+[a-z]?[\s,]+(\d{5})\s+[A-Za-zäöüÄÖÜß]+)/i);
+  if(addrMatch)address=addrMatch[0].replace(/\s+/g,' ').trim();
+  const companyWords=['gmbh','kg','ag',' ug ',' llp ',' ltd ',' inc ',' corp ',' salon ',' friseur ',' barber ',' beauty ',' studio ',' cosmetic ',' wellness ',' nails ',' hair ',' haare ',' hairstyle ',' friseursalon '];
+  const cleanText=text.replace(new RegExp(companyWords.join('|'),'gi'),' ').trim();
+  const nameLines=lines.filter(function(l){return l.trim().length>3 && /^[A-Z][a-zäöüß]+(\s[A-Z][a-zäöüß]+)+$/.test(l.trim()) && !l.includes('@') && !/^\d/.test(l)});
+  if(nameLines.length>0)name=nameLines[0].trim();
+  const shopCandidates=lines.filter(function(l){return l.trim().length>2 && !l.includes('@') && !/^\+?\d/.test(l) && !/straße|weg|platz/i.test(l)});
+  if(shopCandidates.length>0)shop=shopCandidates[0].replace(/[\/\\]/g,' ').trim();
+  if(name)document.getElementById('cust-name').value=name;
+  if(shop)document.getElementById('cust-shop').value=shop;
+  if(phone)document.getElementById('cust-phone').value=phone;
+  if(email)document.getElementById('cust-email').value=email;
+  if(address)document.getElementById('cust-address').value=address;
+  const parts=[];
+  if(name)parts.push('Name');
+  if(shop)parts.push('Salon');
+  if(phone)parts.push('Tel');
+  if(email)parts.push('E-Mail');
+  if(address)parts.push('Adresse');
+  if(parts.length){
+    showToast('✅ Visitenkarte erkannt: '+parts.join(', '));
+  }else{
+    showToast('⚠️ Keine Daten erkannt — bitte prüfen');
+  }
+}
 function initSignatureCanvas(){const canvas=document.getElementById('signature-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');canvas.width=canvas.offsetWidth;canvas.height=160;ctx.strokeStyle='#1A1A1E';ctx.lineWidth=3;ctx.lineCap='round';let drawing=false;function getPos(ev){const rect=canvas.getBoundingClientRect();const touch=ev.touches?ev.touches[0]:ev;return{x:touch.clientX-rect.left,y:touch.clientY-rect.top}}function start(ev){ev.preventDefault();drawing=true;const p=getPos(ev);ctx.beginPath();ctx.moveTo(p.x,p.y)}function move(ev){if(!drawing)return;ev.preventDefault();const p=getPos(ev);ctx.lineTo(p.x,p.y);ctx.stroke()}function end(){drawing=false}canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',move);canvas.addEventListener('mouseup',end);canvas.addEventListener('touchstart',start);canvas.addEventListener('touchmove',move);canvas.addEventListener('touchend',end)}
 function getSignatureDataURL(){const canvas=document.getElementById('signature-canvas');return canvas?canvas.toDataURL():''}
 function clearSignature(){const canvas=document.getElementById('signature-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height)}
@@ -417,7 +488,8 @@ function openDetail(id){
     html+='<div>';
     relatedVisits.forEach(function(v){
       const color=getVisitAgeColor(daysSince(v.date));
-      html+='<div class="visit-item"><div class="visit-dot" style="background:'+color+'"></div><div class="visit-info"><div class="visit-type">'+(v.type==='bestellung'?'🛒 Bestellung':'🤝 Präsentation')+'</div><div class="visit-date">'+(v.date||'')+(v.notes?' — '+v.notes:'')+'</div></div><div class="visit-amount">'+(v.amount||0).toFixed(2)+'€</div><button class="btn btn-secondary btn-small" onclick="event.stopPropagation();editVisit(\''+v.id+'\')">✏️</button><button class="btn btn-danger btn-small" onclick="event.stopPropagation();deleteVisit(\''+v.id+'\')">🗑️</button></div>';
+      const proofThumbs=(v.proofPhotos&&v.proofPhotos.length)?'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'+v.proofPhotos.map(function(p){return '<img src="'+p+'" style="width:50px;height:50px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">'}).join('')+'</div>':'';
+      html+='<div class="visit-item"><div class="visit-dot" style="background:'+color+'"></div><div class="visit-info"><div class="visit-type">'+(v.type==='bestellung'?'🛒 Bestellung':'🤝 Präsentation')+'</div><div class="visit-date">'+(v.date||'')+(v.notes?' — '+v.notes:'')+'</div>'+proofThumbs+'</div><div class="visit-amount">'+(v.amount||0).toFixed(2)+'€</div><button class="btn btn-secondary btn-small" onclick="event.stopPropagation();editVisit(\''+v.id+'\\')">✏️</button><button class="btn btn-danger btn-small" onclick="event.stopPropagation();deleteVisit(\''+v.id+'\\')">🗑️</button></div>';
     });
     html+='</div>';
   }
@@ -448,7 +520,7 @@ function editCustomer(id){
 }
 function deleteCustomer(id){if(!confirm('Kunde wirklich löschen?'))return;db.customers=db.customers.filter(function(x){return x.id!==id});db.visits=db.visits.filter(function(v){return v.customerId!==id});db.payments=db.payments.filter(function(p){return p.customerId!==id});saveData();showPage('customers');showToast('Kunde gelöscht')}
 function toggleFavorite(id){const c=db.customers.find(function(x){return x.id===id});if(c){c.favorite=!c.favorite;saveData();renderCustomerList()}}
-function populateVisitCustomers(){const sel=document.getElementById('visit-customer');sel.innerHTML='<option value="">— Kunde wählen —</option>';db.customers.forEach(function(c){sel.innerHTML+='<option value="'+c.id+'">'+(c.shop||c.name)+'</option>'})}
+function populateVisitCustomers(){tempProofPhotos=[];renderProofPreview();const sel=document.getElementById('visit-customer');sel.innerHTML='<option value="">— Kunde wählen —</option>';db.customers.forEach(function(c){sel.innerHTML+='<option value="'+c.id+'">'+(c.shop||c.name)+'</option>'})}
 function onVisitCustomerChange(){const sel=document.getElementById('visit-customer');const c=db.customers.find(function(x){return x.id===sel.value});if(c){document.getElementById('visit-note').value=(c.shop||c.name)}}
 function saveVisit(e){
   e.preventDefault();
@@ -460,7 +532,7 @@ function saveVisit(e){
   const paid=parseFloat(document.getElementById('visit-paid').value)||0;
   const notes=document.getElementById('visit-note').value.trim();
   if(!customerId){alert('Bitte Kunde wählen.');return}
-  const visit={id:Date.now().toString(36),customerId:customerId,date:date,type:type,shop:db.customers.find(function(x){return x.id===customerId})?.shop||'',qty:qty,amount:amount,paid:paid,unitPrice:qty>0?amount/qty:0,notes:notes,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  const visit={id:Date.now().toString(36),customerId:customerId,date:date,type:type,shop:db.customers.find(function(x){return x.id===customerId})?.shop||'',qty:qty,amount:amount,paid:paid,unitPrice:qty>0?amount/qty:0,notes:notes,proofPhotos:tempProofPhotos.slice(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
   db.visits.push(visit);
   const c=db.customers.find(function(x){return x.id===customerId});
   if(c){const related=db.visits.filter(function(v){return v.customerId===c.id});c.orderCount=related.filter(function(v){return v.type==='bestellung'}).length;c.revenue=related.reduce(function(s,v){return s+(v.amount||0)},0);c.debt=related.reduce(function(s,v){return s+(v.amount||0)-(v.paid||0)},0);if(related.length>0)c.lastVisit=related.sort(function(a,b){return b.date>a.date?1:-1})[0].date;else c.lastVisit=null}
@@ -669,9 +741,10 @@ function autoSync(){
   if(!navigator.onLine)return;
   const cfg=getSyncConfig();
   if(!cfg.appId||!cfg.sheetId)return;
-  const unsynced=db.customers.filter(function(c){return !c._synced}).concat(db.visits.filter(function(v){return !v._synced})).concat(db.payments.filter(function(p){return !p._synced}));
-  if(unsynced.length===0)return;
-  const payload={customers:db.customers.filter(function(c){return !c._synced}),visits:db.visits.filter(function(v){return !v._synced}),payments:db.payments.filter(function(p){return !p._synced})};
+  const customers=db.customers.filter(function(c){return !c._synced}).map(function(c){return{id:c.id,name:c.name,shop:c.shop,phone:c.phone,email:c.email,address:c.address,lat:c.lat,lng:c.lng,role:c.role,category:c.category,createdAt:c.createdAt,updatedAt:c.updatedAt,photoCount:(c.photos||[]).length,bizCardCount:(c.bizCards||[]).length}});
+  const visits=db.visits.filter(function(v){return !v._synced}).map(function(v){return{id:v.id,customerId:v.customerId,date:v.date,type:v.type,shop:v.shop,qty:v.qty,amount:v.amount,paid:v.paid,unitPrice:v.unitPrice,notes:v.notes,proofPhotoCount:(v.proofPhotos||[]).length,createdAt:v.createdAt,updatedAt:v.updatedAt}});
+  const payments=db.payments.filter(function(p){return !p._synced}).map(function(p){return{id:p.id,customerId:p.customerId,date:p.date,amount:p.amount,method:p.method,note:p.note,createdAt:p.createdAt}});
+  const payload={customers:customers,visits:visits,payments:payments};
   fetch(cfg.endpoint,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
