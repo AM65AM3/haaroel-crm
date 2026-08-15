@@ -114,7 +114,14 @@ html{scroll-behavior:smooth}
 <div class="stat-card"><span class="num" id="stat-debt">0€</span><span class="lbl">Offen</span></div>
 <div class="stat-card"><span class="num" id="stat-revenue">0€</span><span class="lbl">Umsatz</span></div>
 </div>
-<div class="card"><h3>🗺️ Karten-Übersicht</h3><div id="home-map" style="height:200px;border-radius:10px;background:var(--surface-lt)"></div><p style="font-size:.75rem;color:var(--muted);margin-top:8px">Besucht &lt;14 Tage • 🟢 gut • 🟡 bald • 🔴 überfällig</p></div>
+<div class="card">
+<h3>🗺️ Karten-Übersicht</h3>
+<div id="home-map" style="height:200px;border-radius:10px;background:var(--surface-lt)"></div>
+<p style="font-size:.75rem;color:var(--muted);margin-top:8px">Besucht &lt;14 Tage • 🟢 gut • 🟡 bald • 🔴 überfällig</p>
+<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+<button class="btn btn-secondary btn-small" onclick="showPage('map')">🗺️ Alle Karten</button>
+</div>
+</div>
 <div class="card"><h3>📈 Performance-Übersicht</h3><div id="perf-summary"></div></div>
 <div class="card"><h3>📷 Papier-Liste scannen (OCR)</h3><p class="sub" style="font-size:.8rem;color:var(--muted);margin-bottom:10px">Foto von einer Liste machen — Text wird automatisch erkannt.</p><div style="display:flex;gap:8px"><button class="btn btn-secondary btn-small" onclick="document.getElementById('ocr-camera').click()">📷 Kamera</button><button class="btn btn-secondary btn-small" onclick="document.getElementById('ocr-gallery').click()">🖼️ Galerie</button></div><input type="file" id="ocr-camera" accept="image/*" capture="environment" style="display:none" onchange="runOCR(event)"><input type="file" id="ocr-gallery" accept="image/*" style="display:none" onchange="runOCR(event)"><div id="ocr-status" style="margin-top:10px;font-size:.85rem;color:var(--muted)"></div><textarea id="ocr-text" placeholder="Erkannter Text erscheint hier…" style="margin-top:10px;display:none"></textarea><div id="ocr-result" style="margin-top:10px;display:none"><button class="btn btn-primary" onclick="importOCRText()">📥 Importieren</button></div></div>
 <div class="card"><h3>📅 Monats-Ansicht</h3><div id="month-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"></div><div id="month-table"></div></div>
@@ -187,6 +194,15 @@ html{scroll-behavior:smooth}
 <p style="font-size:.8rem;color:var(--muted)">Gold Leaf CRM — Haaröl<br>Offline-fähig · DSGVO-konform · Lokale Speicherung</p>
 </div>
 </section>
+<section class="page" id="page-map">
+<h2 style="margin-top:0;color:var(--gold)">🗺️ Karten nach Kategorie</h2>
+<div class="card">
+<h3>Kategorie wählen</h3>
+<div id="map-category-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+<div id="map-container" style="height:500px;border-radius:10px;background:var(--surface-lt)"></div>
+<p style="font-size:.8rem;color:var(--muted);margin-top:8px">🟢 besucht • 🟡 nicht besucht</p>
+</div>
+</section>
 </main>
 <button class="fab" onclick="openNewCustomer()" title="Neuer Kunde">+</button>
 <nav class="bottom-nav">
@@ -195,6 +211,7 @@ html{scroll-behavior:smooth}
 <button class="nav-btn" onclick="showPage('visit')"><span class="icon">📍</span>Besuch</button>
 <button class="nav-btn" onclick="showPage('sync')"><span class="icon">📊</span>Sync</button>
 <button class="nav-btn" onclick="showPage('settings')"><span class="icon">⚙️</span>Mehr</button>
+<button class="nav-btn" onclick="showPage('map')"><span class="icon">🗺️</span>Karte</button>
 </nav>
 <div class="modal-overlay" id="modal-customer" onclick="if(event.target===this)closeModal('modal-customer')">
 <div class="modal-content">
@@ -206,6 +223,7 @@ html{scroll-behavior:smooth}
 <div class="form-group"><label>Telefon</label><input type="tel" id="cust-phone" placeholder="+49 160 5664856"></div>
 <div class="form-group"><label>E-Mail</label><input type="email" id="cust-email" placeholder="info@salon.de"></div>
 <div class="form-group"><label>Adresse</label><input type="text" id="cust-address" placeholder="Straße, PLZ Ort"></div>
+<div class="form-group"><label>Kategorie</label><select id="cust-category"><option value="">— Kategorie wählen —</option><option value="friseur">Friseur</option><option value="kosmetik">Kosmetik</option><option value="nails">Nails</option><option value="barber">Barber</option><option value="wellness">Wellness</option><option value="sonstige">Sonstige</option></select></div>
 <div class="form-group"><label>Rolle</label><select id="cust-role"><option value="chef">Chef</option><option value="mitarbeiter">Mitarbeiter</option></select></div>
 <div class="form-group"><label>Preis 1 (€)</label><input type="number" id="cust-price1" value="0" step="0.01" min="0"></div>
 <div class="form-group"><label>Preis 2 (€)</label><input type="number" id="cust-price2" value="0" step="0.01" min="0"></div>
@@ -286,12 +304,13 @@ function showPage(name){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
   document.getElementById('page-'+name).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active')});
-  var idx={home:0,customers:1,visit:2,sync:3,settings:4}[name]||0;
+  var idx={home:0,customers:1,visit:2,sync:3,settings:4,map:5}[name]||0;
   document.querySelectorAll('.nav-btn')[idx].classList.add('active');
   if(name==='home'){renderRecent();setTimeout(initHomeMap,200);setTimeout(renderMonthView,300)}
   if(name==='customers')renderCustomerList();
   if(name==='visit')populateVisitCustomers();
   if(name==='sync')showTable();
+  if(name==='map')setTimeout(initCategoryMap,200);
 }
 function updateHeaderStats(){
   const custCount=db.customers.length;
@@ -346,6 +365,7 @@ function saveCustomer(e){
   const email=document.getElementById('cust-email').value.trim();
   const address=document.getElementById('cust-address').value.trim();
   const role=document.getElementById('cust-role').value;
+  const category=document.getElementById('cust-category').value;
   const price1=parseFloat(document.getElementById('cust-price1').value)||0;
   const price2=parseFloat(document.getElementById('cust-price2').value)||0;
   const price3=parseFloat(document.getElementById('cust-price3').value)||0;
@@ -355,7 +375,7 @@ function saveCustomer(e){
   if(!name){alert('Name ist Pflicht.');return}
   const duplicates=db.customers.filter(function(x){return(x.shop&&shop&&x.shop.toLowerCase()===shop.toLowerCase())||(x.phone&&phone&&x.phone.replace(/\s/g,'')===phone.replace(/\s/g,'')&&phone)||(x.name&&name&&x.name.toLowerCase()===x.name.toLowerCase())});
   if(duplicates.length>0){if(!confirm('Achtung: Es gibt mögliche Duplikate ('+duplicates.length+'). Trotzdem speichern?')){return}}
-  const customer={id:id,name:name,shop:shop,phone:phone,email:email,address:address,lat:null,lng:null,title:'',role:role,recurring:recurring,hasStand:stock>0?'yes':'no',stock:stock,price1:price1,price2:price2,price3:price3,debt:0,revenue:0,orderCount:0,lastVisit:null,favorite:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),photos:tempPhotos.slice(),signature:signature,notes:'',bizCards:[],isDuplicate:false};
+  const customer={id:id,name:name,shop:shop,phone:phone,email:email,address:address,lat:null,lng:null,title:'',role:role,category:category,recurring:recurring,hasStand:stock>0?'yes':'no',stock:stock,price1:price1,price2:price2,price3:price3,debt:0,revenue:0,orderCount:0,lastVisit:null,favorite:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),photos:tempPhotos.slice(),signature:signature,notes:'',bizCards:[],isDuplicate:false};
   const idx=db.customers.findIndex(function(x){return x.id===id});
   if(idx>=0){db.customers[idx]=customer}else{db.customers.push(customer)}
   saveData();closeModal('modal-customer');showToast('Kunde gespeichert');showPage('customers');
@@ -405,6 +425,7 @@ function editCustomer(id){
   document.getElementById('cust-price3').value=c.price3||0;
   document.getElementById('cust-stand').value=c.stock||0;
   document.getElementById('cust-recurring').value=c.recurring||'no';
+  document.getElementById('cust-category').value=c.category||'';
   tempPhotos=c.photos?c.photos.slice():[];renderPhotoPreview();
   document.getElementById('biz-preview').innerHTML=(c.bizCards||[]).map(function(b){return '<img src="'+b+'" style="width:120px;border-radius:8px;margin-top:4px">'}).join('');
   if(c.signature){const canvas=document.getElementById('signature-canvas');const ctx=canvas.getContext('2d');const img=new Image();img.onload=function(){ctx.drawImage(img,0,0,canvas.width,canvas.height)};img.src=c.signature}
@@ -465,7 +486,7 @@ function initHomeMap(){
 }
 function exportCSV(type){
   let csv='';
-  if(type==='customers'||type==='all'){csv+='id,name,shop,phone,email,address,lat,lng,title,role,recurring,hasStand,stock,price1,price2,price3,debt,favorite,lastVisit,createdAt,updatedAt\n';db.customers.forEach(function(c){csv+=[c.id,c.name,c.shop,c.phone,c.email,c.address,c.lat,c.lng,c.title,c.role,c.recurring,c.hasStand,c.stock,c.price1,c.price2,c.price3,c.debt,c.favorite?1:0,c.lastVisit,c.createdAt,c.updatedAt].join(',')+'\n'})}
+  if(type==='customers'||type==='all'){csv+='id,name,shop,phone,email,address,lat,lng,title,role,category,recurring,hasStand,stock,price1,price2,price3,debt,favorite,lastVisit,createdAt,updatedAt\n';db.customers.forEach(function(c){csv+=[c.id,c.name,c.shop,c.phone,c.email,c.address,c.lat,c.lng,c.title,c.role,c.category||'',c.recurring,c.hasStand,c.stock,c.price1,c.price2,c.price3,c.debt,c.favorite?1:0,c.lastVisit,c.createdAt,c.updatedAt].join(',')+'\n'})}
   if(type==='visits'||type==='all'){csv+='id,customerId,date,type,shop,qty,amount,paid,unitPrice,notes\n';db.visits.forEach(function(v){csv+=[v.id,v.customerId,v.date,v.type,v.shop,v.qty,v.amount,v.paid,v.unitPrice,v.notes].join(',')+'\n'})}
   if(type==='payments'||type==='all'){csv+='id,customerId,date,amount,method,note\n';db.payments.forEach(function(p){csv+=[p.id,p.customerId,p.date,p.amount,p.method,p.note].join(',')+'\n'})}
   const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='glcrm-'+type+'-'+new Date().toISOString().slice(0,10)+'.csv';a.click();
@@ -473,7 +494,7 @@ function exportCSV(type){
 function showTable(){
   const container=document.getElementById('sync-tables');if(!container)return;
   let html='';
-  if(db.customers.length){html+='<h4 style="color:var(--gold);margin:10px 0">Kunden ('+db.customers.length+')</h4><div style="overflow-x:auto"><table class="sync-table"><tr><th>Name</th><th>Shop</th><th>Telefon</th><th>Rolle</th><th>Stand</th><th>Schulden</th></tr>';db.customers.forEach(function(c){html+='<tr><td>'+(c.name||'')+'</td><td>'+(c.shop||'')+'</td><td>'+(c.phone||'')+'</td><td>'+(c.role||'')+'</td><td>'+(c.stock||0)+'</td><td>'+(c.debt||0).toFixed(2)+'€</td></tr>'});html+='</table></div>'}
+  if(db.customers.length){html+='<h4 style="color:var(--gold);margin:10px 0">Kunden ('+db.customers.length+')</h4><div style="overflow-x:auto"><table class="sync-table"><tr><th>Name</th><th>Shop</th><th>Telefon</th><th>Rolle</th><th>Kategorie</th><th>Stand</th><th>Schulden</th></tr>';db.customers.forEach(function(c){html+='<tr><td>'+(c.name||'')+'</td><td>'+(c.shop||'')+'</td><td>'+(c.phone||'')+'</td><td>'+(c.role||'')+'</td><td>'+(c.category||'')+'</td><td>'+(c.stock||0)+'</td><td>'+(c.debt||0).toFixed(2)+'€</td></tr>'});html+='</table></div>'}
   if(db.visits.length){html+='<h4 style="color:var(--gold);margin:10px 0">Besuche ('+db.visits.length+')</h4><div style="overflow-x:auto"><table class="sync-table"><tr><th>Datum</th><th>Kunde</th><th>Art</th><th>Betrag</th><th>Bezahlt</th></tr>';db.visits.slice().sort(function(a,b){return b.date>a.date?1:-1}).forEach(function(v){html+='<tr><td>'+(v.date||'')+'</td><td>'+(v.shop||'')+'</td><td>'+(v.type==='bestellung'?'Bestellung':'Präsentation')+'</td><td>'+(v.amount||0).toFixed(2)+'€</td><td>'+(v.paid||0).toFixed(2)+'€</td></tr>'});html+='</table></div>'}
   if(db.payments.length){html+='<h4 style="color:var(--gold);margin:10px 0">Zahlungen ('+db.payments.length+')</h4><div style="overflow-x:auto"><table class="sync-table"><tr><th>Datum</th><th>Betrag</th><th>Art</th><th>Notiz</th></tr>';db.payments.slice().sort(function(a,b){return b.date>a.date?1:-1}).forEach(function(p){html+='<tr><td>'+(p.date||'')+'</td><td>'+(p.amount||0).toFixed(2)+'€</td><td>'+(p.method||'')+'</td><td>'+(p.note||'')+'</td></tr>'});html+='</table></div>'}
   container.innerHTML=html||'<p style="color:var(--muted);font-size:.85rem">Noch keine Daten.</p>';
@@ -579,6 +600,48 @@ function deleteVisit(visitId){
 }
 function daysSince(dateStr){if(!dateStr)return 9999;const d=new Date(dateStr);const now=new Date();return Math.floor((now-d)/(1000*60*60*24))}
 function getVisitAgeColor(days){if(days<14)return '#2A6B24';if(days<28)return '#C8A059';return '#C0392B'}
+function initCategoryMap(){
+  const container=document.getElementById('map-container');if(!container||!window.L)return;
+  if(map){map.remove();map=null;mapMarkers=[]}
+  map=L.map('map-container').setView([52.52,13.405],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
+  const cats={};
+  db.customers.forEach(function(c){if(!c.category)c.category='sonstige';(cats[c.category]||(cats[c.category]=[])).push(c)});
+  const chipContainer=document.getElementById('map-category-chips');if(!chipContainer)return;
+  const catNames={'friseur':'Friseur','kosmetik':'Kosmetik','nails':'Nails','barber':'Barber','wellness':'Wellness','sonstige':'Sonstige'};
+  let firstCat='';
+  let html='';
+  Object.keys(cats).sort().forEach(function(cat,idx){
+    const label=catNames[cat]||cat;
+    if(idx===0)firstCat=cat;
+    html+='<span class="chip'+(idx===0?' active':'')+'" data-cat="'+cat+'" onclick="selectMapCategory(this,\''+cat+'\')">'+label+' ('+cats[cat].length+')</span>';
+  });
+  html+='<span class="chip" data-cat="all" onclick="selectMapCategory(this,\'all\')">Alle ('+db.customers.length+')</span>';
+  chipContainer.innerHTML=html;
+  renderMapMarkers(firstCat||'all');
+}
+function selectMapCategory(chip,cat){
+  document.querySelectorAll('#map-category-chips .chip').forEach(function(c){c.classList.remove('active')});
+  chip.classList.add('active');
+  renderMapMarkers(cat);
+}
+function renderMapMarkers(cat){
+  if(!map)return;
+  mapMarkers.forEach(function(m){map.removeLayer(m)});mapMarkers=[];
+  let list=db.customers.slice();
+  if(cat!=='all')list=list.filter(function(c){return(c.category||'sonstige')===cat});
+  list.forEach(function(c){
+    if(!c.lat||!c.lng)return;
+    const visits=db.visits.filter(function(v){return v.customerId===c.id});
+    const last=visits.length?visits.sort(function(a,b){return b.date>a.date?1:-1})[0]:null;
+    const color=last?'#2A6B24':'#E67E22';
+    const marker=L.circleMarker([c.lat,c.lng],{radius:8,fillColor:color,color:'#fff',weight:2,opacity:1,fillOpacity:.9}).addTo(map);
+    const catLabel={'friseur':'Friseur','kosmetik':'Kosmetik','nails':'Nails','barber':'Barber','wellness':'Wellness','sonstige':'Sonstige'}[c.category]||c.category||'';
+    marker.bindPopup('<b>'+(c.shop||c.name)+'</b>'+(catLabel?'<br><span style="color:#C8A059">'+catLabel+'</span>':'')+'<br>'+(c.phone||'')+'<br><span style="color:'+color+'">'+(last?'Besucht':'Nicht besucht')+'</span>');
+    mapMarkers.push(marker);
+  });
+  if(mapMarkers.length>0){const group=new L.featureGroup(mapMarkers);map.fitBounds(group.getBounds().pad(.15))}
+}
 function openModal(id){document.getElementById(id).classList.add('active')}
 function closeModal(id){document.getElementById(id).classList.remove('active')}
 function escapeHtml(text){const div=document.createElement('div');div.textContent=text;return div.innerHTML}
