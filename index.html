@@ -122,7 +122,159 @@ main { flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px; }
 .badge-stand { background:var(--orange);color:white; }
 .fab { position:fixed;bottom:80px;right:16px;width:60px;height:60px;border-radius:50%;background:var(--gold);color:var(--obsidian);font-size:1.8rem;border:none;box-shadow:0 4px 16px rgba(200,160,89,0.4);cursor:pointer;z-index:50;display:flex;align-items:center;justify-content:center; }
 .fab:active { transform:scale(0.95); }
-@keyframes fadeIn { from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);} }
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes scaleIn {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+/* Smooth scrolling */
+html { scroll-behavior: smooth; }
+/* Base transitions */
+.card, .customer-card, .visit-item, .stat-card, .chart-bar {
+  animation: fadeIn 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+/* Staggered list animations */
+.customer-card:nth-child(1) { animation-delay: 0.02s; }
+.customer-card:nth-child(2) { animation-delay: 0.06s; }
+.customer-card:nth-child(3) { animation-delay: 0.1s; }
+.customer-card:nth-child(4) { animation-delay: 0.14s; }
+.customer-card:nth-child(5) { animation-delay: 0.18s; }
+.customer-card:nth-child(6) { animation-delay: 0.22s; }
+.customer-card:nth-child(7) { animation-delay: 0.26s; }
+.customer-card:nth-child(8) { animation-delay: 0.3s; }
+.visit-item:nth-child(1) { animation-delay: 0.03s; }
+.visit-item:nth-child(2) { animation-delay: 0.07s; }
+.visit-item:nth-child(3) { animation-delay: 0.11s; }
+.visit-item:nth-child(4) { animation-delay: 0.15s; }
+.visit-item:nth-child(5) { animation-delay: 0.19s; }
+/* Page transitions */
+.page.active { animation: fadeIn 0.3s cubic-bezier(0.22, 0.61, 0.36, 1); }
+/* Modal animations */
+.modal-overlay.active .modal-content {
+  animation: slideUp 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+/* FAB animations */
+.fab {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+.fab:hover { transform: scale(1.08); }
+.fab:active { transform: scale(0.94); }
+/* Button improvements */
+.btn, .nav-btn {
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.btn:active, .nav-btn:active { transform: scale(0.96); }
+.btn-primary:hover { box-shadow: 0 6px 20px rgba(200, 160, 89, 0.35); transform: translateY(-1px); }
+.btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+/* Card hover effects */
+.customer-card:hover, .visit-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-color: var(--gold);
+}
+.customer-card, .visit-item {
+  transition: transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 0.25s ease, border-color 0.2s ease;
+}
+/* Stat card hover */
+.stat-card {
+  transition: transform 0.2s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.stat-card:hover { transform: translateY(-3px); }
+/* Chip interactions */
+.chip {
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, color 0.2s ease;
+}
+.chip:hover { transform: scale(1.05); }
+.chip:active { transform: scale(0.95); }
+.chip.active { animation: pulse 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+/* Input focus animations */
+input:focus, select:focus, textarea:focus {
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(200, 160, 89, 0.15);
+}
+/* Progress bar animation */
+.progress-fill {
+  transition: width 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+/* Toast notification */
+.toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--obsidian-lt);
+  color: var(--text);
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 0.9rem;
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+/* Loading shimmer for OCR */
+.shimmer {
+  background: linear-gradient(90deg, var(--obsidian-lt) 25%, var(--obsidian-mid) 50%, var(--obsidian-lt) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+/* Duplicate warning glow */
+.customer-card.is-duplicate {
+  border-color: #e74c3c !important;
+  animation: pulse 0.6s ease-in-out 3;
+}
+/* Signature canvas */
+.canvas-wrap canvas {
+  touch-action: none;
+  cursor: crosshair;
+  transition: border-color 0.2s ease;
+}
+.canvas-wrap canvas:focus {
+  border-color: var(--gold);
+}
+/* Search bar enhancement */
+.search-bar input:focus {
+  transform: scale(1.01);
+}
+/* Photo grid */
+.photo-grid img {
+  animation: scaleIn 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: transform 0.2s ease;
+}
+.photo-grid img:hover { transform: scale(1.03); }
+/* Smooth modal backdrop */
+.modal-overlay {
+  transition: opacity 0.25s ease;
+}
 .fade-in { animation:fadeIn 0.25s ease-out; }
 ::-webkit-scrollbar { width:4px; }
 ::-webkit-scrollbar-track { background:transparent; }
