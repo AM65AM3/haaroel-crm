@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1A1A1E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gold Leaf CRM">
+<title>Gold Leaf CRM — Haaröl</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+:root {
+  --obsidian: #1A1A1E;
+  --obsidian-lt: #25252A;
+  --obsidian-mid: #2E2E35;
+  --gold: #C8A059;
+  --gold-dim: #A07840;
+  --gold-bright: #E8C87A;
+  --green: #2A6B24;
+  --green-lt: #3A8B34;
+  --yellow: #C8A059;
+  --orange: #D35400;
+  --red: #C0392B;
+  --bg: #0F0F12;
+  --card: #1A1A1E;
+  --text: #F0EEE8;
+  --muted: #8A8880;
+  --border: #3A3A42;
+}
+*,*::before,*::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+html,body { margin:0;padding:0;height:100%;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden; }
+input,textarea,select,button { font-family:inherit;font-size:16px; }
+a { color: var(--gold); }
+#app { display:flex;flex-direction:column;height:100dvh; }
+header { background:var(--obsidian); border-bottom:2px solid var(--gold); padding:12px 16px; display:flex; align-items:center; gap:12px; flex-shrink:0; z-index:100; }
+header .logo { font-family:'Georgia',serif;font-size:1.2rem;color:var(--gold);font-weight:bold;white-space:nowrap; }
+header .stats { margin-left:auto;display:flex;gap:14px;font-size:0.82rem;color:var(--muted); }
+header .stats strong { color:var(--gold); }
+nav { background:var(--obsidian-lt);border-top:1px solid var(--border);display:flex;justify-content:space-around;flex-shrink:0;z-index:100;padding:4px 0 env(safe-area-inset-bottom); }
+.nav-btn { flex:1;padding:10px 4px;background:transparent;border:none;color:var(--muted);font-size:0.7rem;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:color 0.15s; }
+.nav-btn .icon { font-size:1.4rem; }
+.nav-btn.active { color:var(--gold); }
+.nav-btn:active { opacity:0.7; }
+main { flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px; }
+.page { display:none; }
+.page.active { display:block; }
+.card { background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;position:relative;overflow:hidden; }
+.card::before { content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),var(--green)); }
+.card h3 { margin:0 0 8px;font-size:1.05rem;color:var(--gold); }
+.card .sub { font-size:0.82rem;color:var(--muted); }
+.form-group { margin-bottom:14px; }
+.form-group label { display:block;font-size:0.85rem;font-weight:600;margin-bottom:5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px; }
+.form-group input,.form-group textarea,.form-group select { width:100%;padding:12px 14px;background:var(--obsidian-lt);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;transition:border-color 0.2s;-webkit-appearance:none; }
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus { outline:none;border-color:var(--gold); }
+.form-group textarea { min-height:90px;resize:vertical; }
+.form-row { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+.btn { padding:14px 20px;border:none;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform 0.1s,opacity 0.1s;min-height:52px;width:100%; }
+.btn:active { transform:scale(0.97);opacity:0.9; }
+.btn-primary { background:var(--gold);color:var(--obsidian); }
+.btn-secondary { background:var(--obsidian-mid);color:var(--text);border:2px solid var(--border); }
+.btn-danger { background:var(--red);color:white; }
+.btn-success { background:var(--green);color:white; }
+.btn-small { padding:10px 14px;font-size:0.9rem;min-height:40px;width:auto; }
+.canvas-wrap { background:white;border-radius:12px;overflow:hidden;position:relative; }
+#signature-canvas { width:100%;display:block;touch-action:none;cursor:crosshair; }
+.canvas-toolbar { display:flex;gap:8px;padding:8px;background:var(--obsidian-lt);border-top:1px solid var(--border); }
+.photo-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:8px; }
+.photo-grid img { width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:2px solid var(--border); }
+.photo-input-wrap { display:flex;gap:8px;margin-top:8px; }
+.customer-list { display:flex;flex-direction:column;gap:10px; }
+.customer-item { display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:border-color 0.2s; }
+.customer-item:active { border-color:var(--gold); }
+.avatar { width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--green));display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:bold;color:var(--obsidian);flex-shrink:0; }
+.customer-info { flex:1;min-width:0; }
+.customer-info .name { font-weight:600;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.customer-info .sub { font-size:0.82rem;color:var(--muted); }
+.debt-badge { background:var(--red);color:white;padding:4px 10px;border-radius:20px;font-size:0.85rem;font-weight:600;flex-shrink:0; }
+.debt-badge.ok { background:var(--green); }
+.search-bar { position:relative;margin-bottom:12px; }
+.search-bar input { width:100%;padding:12px 14px 12px 42px;border-radius:30px;border:2px solid var(--border);background:var(--card);color:var(--text);font-size:1rem; }
+.search-bar input:focus { border-color:var(--gold);outline:none; }
+.search-bar::before { content:'🔍';position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:1.1rem; }
+.detail-header { display:flex;align-items:center;gap:12px;margin-bottom:16px; }
+.back-btn { background:var(--obsidian-mid);border:2px solid var(--border);color:var(--text);padding:10px 16px;border-radius:10px;cursor:pointer;font-size:1.2rem; }
+.detail-section { margin-bottom:20px; }
+.detail-section h3 { color:var(--gold);margin-bottom:10px;font-size:0.95rem;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid var(--border);padding-bottom:6px; }
+.visit-item { background:var(--obsidian-lt);border-left:4px solid var(--gold);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center; }
+.visit-item .date { font-size:0.8rem;color:var(--muted); }
+.visit-item .type { font-size:0.85rem; }
+.visit-item .shop { font-size:0.9rem;font-weight:600; }
+.stat-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px; }
+.stat-card { background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center; }
+.stat-card .num { font-size:2rem;font-weight:bold;color:var(--gold); }
+.stat-card .lbl { font-size:0.8rem;color:var(--muted);margin-top:4px; }
+.chips { display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px; }
+.chip { padding:8px 14px;border-radius:20px;background:var(--obsidian-mid);border:1px solid var(--border);color:var(--muted);font-size:0.85rem;cursor:pointer; }
+.chip.active { background:var(--gold);color:var(--obsidian);border-color:var(--gold);font-weight:600; }
+#map { width:100%;height:300px;border-radius:12px;margin-top:8px;border:2px solid var(--border); }
+.map-legend { font-size:0.8rem;color:var(--muted);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap; }
+.legend-dot { width:10px;height:10px;border-radius:50%;display:inline-block; }
+.modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999;align-items:flex-end;justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal-content { background:var(--card);border-radius:20px 20px 0 0;width:100%;max-height:90dvh;overflow-y:auto;padding:20px; }
+.modal-header { display:flex;justify-content:space-between;align-items:center;margin-bottom:16px; }
+.modal-header h2 { margin:0;color:var(--gold); }
+.close-btn { background:none;border:none;color:var(--muted);font-size:1.8rem;cursor:pointer;padding:4px 8px; }
+.modal-handle { width:40px;height:4px;background:var(--border);border-radius:2px;margin:-8px auto 12px; }
+.payment-methods { display:flex;gap:10px;margin-bottom:14px; }
+.pay-btn { flex:1;padding:12px;border-radius:10px;border:2px solid var(--border);background:var(--obsidian-lt);color:var(--text);cursor:pointer;font-size:0.9rem; }
+.pay-btn.selected { border-color:var(--gold);background:var(--gold-dim);color:white; }
+.empty-state { text-align:center;padding:40px 20px;color:var(--muted); }
+.empty-state .big { font-size:3rem;margin-bottom:12px; }
+.section-title { font-size:1.1rem;font-weight:600;margin-bottom:12px;color:var(--text); }
+.badge { display:inline-block;padding:3px 8px;border-radius:6px;font-size:0.75rem;font-weight:600; }
+.badge-visit { background:var(--green);color:white; }
+.badge-debt { background:var(--red);color:white; }
+.badge-paid { background:var(--obsidian-mid);color:var(--muted); }
+.badge-stand { background:var(--orange);color:white; }
+.fab { position:fixed;bottom:80px;right:16px;width:60px;height:60px;border-radius:50%;background:var(--gold);color:var(--obsidian);font-size:1.8rem;border:none;box-shadow:0 4px 16px rgba(200,160,89,0.4);cursor:pointer;z-index:50;display:flex;align-items:center;justify-content:center; }
+.fab:active { transform:scale(0.95); }
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);} }
+.fade-in { animation:fadeIn 0.25s ease-out; }
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border);border-radius:2px; }
+@media (min-width:768px) {
+  main { padding:20px;max-width:900px;margin:0 auto; }
+  .stat-grid { grid-template-columns:repeat(4,1fr); }
+  .form-row { grid-template-columns:1fr 1fr 1fr; }
+}
+.table-wrap { overflow-x:auto;margin-top:10px;border-radius:10px;border:1px solid var(--border); }
+table { width:100%;border-collapse:collapse;background:var(--obsidian-lt);font-size:0.9rem; }
+th { background:var(--obsidian-mid);color:var(--gold);padding:10px;text-align:left;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px; }
+td { padding:10px;border-top:1px solid var(--border);color:var(--text); }
+tr:hover td { background:rgba(200,160,89,0.05); }
+.progress-bar { height:8px;background:var(--obsidian-mid);border-radius:4px;overflow:hidden;margin-top:4px; }
+.progress-fill { height:100%;border-radius:4px;transition:width 0.3s; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">🌿 Gold Leaf CRM</div>
+    <div class="stats" id="header-stats"></div>
+  </header>
+  <main>
+    <div class="page active" id="page-home">
+      <div class="stat-grid">
+        <div class="stat-card"><div class="num" id="stat-total">0</div><div class="lbl">Kunden</div></div>
+        <div class="stat-card"><div class="num" id="stat-visits">0</div><div class="lbl">Besuche</div></div>
+        <div class="stat-card"><div class="num" id="stat-debt" style="color:#C0392B;">0€</div><div class="lbl">Offen</div></div>
+        <div class="stat-card"><div class="num" id="stat-revenue">0€</div><div class="lbl">Umsatz</div></div>
+      </div>
+      <div class="card">
+        <h3>🗺️ Karten-Übersicht</h3>
+        <div id="home-map"></div>
+        <div class="map-legend">
+          <span><span class="legend-dot" style="background:#2A6B24;"></span>Besucht (<2 Wochen)</span>
+          <span><span class="legend-dot" style="background:#C8A059;"></span>2-4 Wochen</span>
+          <span><span class="legend-dot" style="background:#C0392B;"></span>>4 Wochen / nie</span>
+        </div>
+      </div>
+      <div class="section-title">Letzte Kunden</div>
+      <div id="recent-list" class="customer-list"></div>
+      <div class="card" style="margin-top:16px;">
+        <h3>📈 Performance-Übersicht</h3>
+        <div id="perf-summary"></div>
+      </div>
+      <div class="card" style="margin-top:16px;">
+        <h3>📷 Papier-Liste scannen (OCR)</h3>
+        <p class="sub">Foto von einer Liste machen — Text wird automatisch erkannt und zum Import angezeigt.</p>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn btn-secondary" onclick="document.getElementById('ocr-camera').click()" style="flex:1;">📷 Kamera</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('ocr-gallery').click()" style="flex:1;">🖼️ Galerie</button>
+        </div>
+        <input type="file" id="ocr-camera" accept="image/*" capture="environment" style="display:none" onchange="runOCR(event)">
+        <input type="file" id="ocr-gallery" accept="image/*" style="display:none" onchange="runOCR(event)">
+        <div id="ocr-status" style="margin-top:10px;color:var(--muted);font-size:0.85rem;"></div>
+        <div id="ocr-result" style="margin-top:10px;display:none;">
+          <textarea id="ocr-text" style="width:100%;min-height:120px;background:var(--obsidian-lt);border:2px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:0.95rem;" placeholder="Erkannter Text…"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn btn-primary" onclick="importOCRText()" style="flex:1;">📥 Importieren</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('ocr-camera').click()" style="flex:1;">🔄 Neu scannen</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px;">
+        <h3>📅 Monats-Ansicht</h3>
+        <div class="chips" id="month-chips" style="margin-bottom:10px;"></div>
+        <div id="month-table"></div>
+      </div>
+    </div>
+    <div class="page" id="page-customers">
+      <div class="search-bar"><input type="text" id="search-input" placeholder="Suche Kunden, Läden, Orte…"></div>
+      <div class="chips" id="filter-chips">
+        <div class="chip active" data-filter="all">Alle</div>
+        <div class="chip" data-filter="visited">Besucht</div>
+        <div class="chip" data-filter="debt">Schulden</div>
+        <div class="chip" data-filter="favorite">⭐ Favoriten</div>
+        <div class="chip" data-filter="stand">📢 Stand</div>
+        <div class="chip" data-filter="recurring">🔄 Wiederkehrend</div>
+        <div class="chip" data-filter="chef">👑 Chef</div>
+        <div class="chip" data-filter="mitarbeiter">👤 Mitarbeiter</div>
+        <div class="chip" data-filter="duplicate">⚠️ Duplikate</div>
+      </div>
+      <div id="customer-list" class="customer-list"></div>
+    </div>
+    <div class="page" id="page-detail">
+      <div class="detail-header">
+        <button class="back-btn" onclick="showPage('customers')">←</button>
+        <div style="font-size:1.1rem;font-weight:600;" id="detail-name"></div>
+      </div>
+      <div id="detail-content"></div>
+    </div>
+    <div class="page" id="page-visit">
+      <h2 style="margin-top:0;color:var(--gold);">Neuen Besuch / Bestellung eintragen</h2>
+      <form id="visit-form" onsubmit="saveVisit(event)">
+        <div class="form-group">
+          <label>Kunde auswählen</label>
+          <select id="visit-customer" required onchange="onVisitCustomerChange()"></select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Datum</label>
+            <input type="date" id="visit-date" required>
+          </div>
+          <div class="form-group">
+            <label>Art</label>
+            <select id="visit-type">
+              <option value="präsentation">Präsentation</option>
+              <option value="bestellung">Bestellung</option>
+              <option value="lieferung">Lieferung</option>
+              <option value="followup">Follow-up</option>
+              <option value="erstgespräch">Erstgespräch</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Laden / Salon / Messestand</label>
+          <input type="text" id="visit-shop" placeholder="z.B. Salon Müller" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Anzahl</label>
+            <input type="number" id="visit-qty" placeholder="0" min="0" value="0">
+          </div>
+          <div class="form-group">
+            <label>Umsatz (€)</label>
+            <input type="number" id="visit-amount" placeholder="0.00" step="0.01" min="0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Preis pro Einheit (€) — Staffelpreis</label>
+          <input type="number" id="visit-unit-price" placeholder="Auto" step="0.01" min="0">
+          <p class="sub" id="price-hint" style="margin-top:4px;"></p>
+        </div>
+        <div class="form-group">
+          <label>Bezahlt (€)</label>
+          <input type="number" id="visit-paid" placeholder="0.00" step="0.01" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label>Notizen</label>
+          <textarea id="visit-notes" placeholder="Wie performt, Bestand, Nachfrage…"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">💾 Speichern</button>
+      </form>
+    </div>
+    <div class="page" id="page-sync">
+      <h2 style="margin-top:0;color:var(--gold);">📊 Google Sheets Sync</h2>
+      <div class="card">
+        <h3>📤 CSV Export — in Sheets öffnen</h3>
+        <p class="sub">CSV-Datei herunterladen, dann in Google Sheets per <em>Datei → Importieren</em> öffnen.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          <button class="btn btn-secondary" onclick="exportCSV('customers')">👥 Kunden</button>
+          <button class="btn btn-secondary" onclick="exportCSV('visits')">📍 Besuche</button>
+          <button class="btn btn-secondary" onclick="exportCSV('payments')">💰 Zahlungen</button>
+          <button class="btn btn-primary" onclick="exportCSV('all')" style="flex-basis:100%;">📦 Alle Tabellen</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>🔗 Live Sync — Google Sheets API</h3>
+        <p class="sub">Zweiter Weg: über Google Apps Script URL direkt in ein Sheet schreiben.</p>
+        <div class="form-group" style="margin-top:10px;">
+          <label>Apps Script Web App URL</label>
+          <input type="text" id="sync-url" placeholder="https://script.google.com/macros/s/…/exec">
+        </div>
+        <div class="form-group">
+          <label>Sheet ID (aus der URL)</label>
+          <input type="text" id="sync-sheet-id" placeholder="1aBcDeFgHiJkLmNoPqRsTuVwXyZ">
+        </div>
+        <button class="btn btn-success" onclick="syncToSheets()" style="margin-top:8px;">🔄 Jetzt synchronisieren</button>
+        <p class="sub" id="sync-status" style="margin-top:8px;"></p>
+      </div>
+      <div class="card">
+        <h3>📋 Tabelle anzeigen</h3>
+        <p class="sub">Lokale Daten direkt in der App ansehen.</p>
+        <div class="chips" style="margin-top:10px;">
+          <div class="chip active" data-table="customers" onclick="showTable(this,'customers')">Kunden</div>
+          <div class="chip" data-table="visits" onclick="showTable(this,'visits')">Besuche</div>
+          <div class="chip" data-table="payments" onclick="showTable(this,'payments')">Zahlungen</div>
+        </div>
+        <div class="table-wrap"><div id="table-container"></div></div>
+      </div>
+    </div>
+    <div class="page" id="page-settings">
+      <h2 style="margin-top:0;color:var(--gold);">Einstellungen & Daten</h2>
+      <div class="card">
+        <h3>📤 Backup</h3>
+        <button class="btn btn-secondary" onclick="exportData()" style="margin-top:8px;">📦 JSON Backup</button>
+      </div>
+      <div class="card">
+        <h3>📥 Backup laden</h3>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+        <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()" style="margin-top:8px;">📂 JSON laden</button>
+      </div>
+      <div class="card">
+        <h3>📊 CSV Import</h3>
+        <p class="sub">Bestehende Tabellen importieren (Kunden, Besuche, Zahlungen). Nutze die CSV aus dem Sync-Bereich als Vorlage.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          <button class="btn btn-secondary btn-small" onclick="document.getElementById('csv-customers').click()">👥 Kunden</button>
+          <button class="btn btn-secondary btn-small" onclick="document.getElementById('csv-visits').click()">📍 Besuche</button>
+          <button class="btn btn-secondary btn-small" onclick="document.getElementById('csv-payments').click()">💰 Zahlungen</button>
+        </div>
+        <input type="file" id="csv-customers" accept=".csv" style="display:none" onchange="(e)=>importCSV(e,'customers')">
+        <input type="file" id="csv-visits" accept=".csv" style="display:none" onchange="(e)=>importCSV(e,'visits')">
+        <input type="file" id="csv-payments" accept=".csv" style="display:none" onchange="(e)=>importCSV(e,'payments')">
+      </div>
+      <div class="card">
+        <h3>🗑️ Löschen</h3>
+        <button class="btn btn-danger" onclick="clearAllData()" style="margin-top:8px;">⚠️ Alles löschen</button>
+      </div>
+      <div class="card">
+        <h3>ℹ️ Info</h3>
+        <p class="sub">Gold Leaf CRM v2.0 — Offline PWA. Alle Daten lokal.</p>
+      </div>
+    </div>
+  </main>
+  <button class="fab" id="fab" onclick="openNewCustomer()" title="Neuer Kunde">+</button>
+  <nav>
+    <button class="nav-btn active" onclick="showPage('home')"><span class="icon">🏠</span>Start</button>
+    <button class="nav-btn" onclick="showPage('customers')"><span class="icon">👥</span>Kunden</button>
+    <button class="nav-btn" onclick="showPage('visit')"><span class="icon">📍</span>Besuch</button>
+    <button class="nav-btn" onclick="showPage('sync')"><span class="icon">📊</span>Sync</button>
+    <button class="nav-btn" onclick="showPage('settings')"><span class="icon">⚙️</span>Mehr</button>
+  </nav>
+</div>
+<div class="modal-overlay" id="modal-customer">
+  <div class="modal-content">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2>Neuer Kunde / Laden</h2>
+      <button class="close-btn" onclick="closeModal('modal-customer')">&times;</button>
+    </div>
+    <form id="customer-form" onsubmit="saveCustomer(event)">
+      <div class="form-group">
+        <label>Name des Inhabers</label>
+        <input type="text" id="cust-name" required placeholder="z.B. Herr Müller">
+      </div>
+      <div class="form-group">
+        <label>Laden / Salon / Firma</label>
+        <input type="text" id="cust-shop" required placeholder="z.B. Salon Müller">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Telefon</label>
+          <input type="tel" id="cust-phone" placeholder="0170 123456">
+        </div>
+        <div class="form-group">
+          <label>E-Mail</label>
+          <input type="email" id="cust-email" placeholder="mail@example.com">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Adresse</label>
+        <input type="text" id="cust-address" placeholder="Straße, PLZ Ort" onblur="previewGeocode()">
+      </div>
+      <div class="form-group">
+        <label>Webseite / Instagram</label>
+        <input type="text" id="cust-web" placeholder="https://…">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Anrede</label>
+          <select id="cust-title">
+            <option value="">—</option>
+            <option value="Herr">Herr</option>
+            <option value="Frau">Frau</option>
+            <option value="Firma">Firma</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Position / Rolle</label>
+          <select id="cust-role">
+            <option value="">—</option>
+            <option value="chef">👑 Chef / Inhaber</option>
+            <option value="mitarbeiter">👤 Mitarbeiter</option>
+            <option value="manager">📋 Manager</option>
+            <option value="einkauf">🛒 Einkauf</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Wiederkehrend?</label>
+          <select id="cust-recurring">
+            <option value="no">Nein</option>
+            <option value="weekly">Wöchentlich</option>
+            <option value="biweekly">Alle 2 Wochen</option>
+            <option value="monthly">Monatlich</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Hat Werbestand?</label>
+          <select id="cust-stand">
+            <option value="no">Nein</option>
+            <option value="yes">Ja — hat Stand/Werbematerial</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Anfangsbestand (Flaschen)</label>
+          <input type="number" id="cust-stock" min="0" value="0">
+        </div>
+        <div class="form-group">
+          <label>Preis Staffel 1 (€/Fl.)</label>
+          <input type="number" id="cust-price1" min="0" step="0.01" value="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Preis Staffel 2 (€/Fl.)</label>
+          <input type="number" id="cust-price2" min="0" step="0.01" value="0">
+        </div>
+        <div class="form-group">
+          <label>Preis Staffel 3+ (€/Fl.)</label>
+          <input type="number" id="cust-price3" min="0" step="0.01" value="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notizen</label>
+        <textarea id="cust-notes" placeholder="Interessen, Performance, Bestand, Kontakte…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>📸 Fotos (Laden, Produkte, Dokumente)</label>
+        <div class="photo-input-wrap">
+          <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('photo-camera').click()">📷 Kamera</button>
+          <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('photo-gallery').click()">🖼️ Galerie</button>
+        </div>
+        <input type="file" id="photo-camera" accept="image/*" capture="environment" style="display:none" onchange="addPhoto(event)">
+        <input type="file" id="photo-gallery" accept="image/*" multiple style="display:none" onchange="addPhoto(event)">
+        <div class="photo-grid" id="photo-preview"></div>
+      </div>
+      <div class="form-group">
+        <label>🪪 Visitenkarte</label>
+        <p class="sub">Foto von der Visitenkarte machen — wird dem Kunden zugeordnet.</p>
+        <div class="photo-input-wrap">
+          <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('biz-camera').click()">📷 Kamera</button>
+          <button type="button" class="btn btn-secondary btn-small" onclick="document.getElementById('biz-gallery').click()">🖼️ Galerie</button>
+        </div>
+        <input type="file" id="biz-camera" accept="image/*" capture="environment" style="display:none" onchange="addBizCard(event)">
+        <input type="file" id="biz-gallery" accept="image/*" style="display:none" onchange="addBizCard(event)">
+        <div id="biz-preview" style="margin-top:8px;"></div>
+      </div>
+      <div class="form-group">
+        <label>✍️ Unterschrift</label>
+        <div class="canvas-wrap">
+          <canvas id="signature-canvas" height="160"></canvas>
+          <div class="canvas-toolbar">
+            <button type="button" class="btn btn-secondary btn-small" onclick="clearSignature()">🗑️</button>
+            <span style="color:var(--muted);font-size:0.8rem;margin-left:auto;">Hier unterschreiben lassen</span>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">💾 Speichern</button>
+    </form>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-payment">
+  <div class="modal-content">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2>Zahlung erfassen</h2>
+      <button class="close-btn" onclick="closeModal('modal-payment')">&times;</button>
+    </div>
+    <form id="payment-form" onsubmit="savePayment(event)">
+      <input type="hidden" id="pay-cust-id">
+      <div class="form-group">
+        <label>Betrag (€)</label>
+        <input type="number" id="pay-amount" step="0.01" min="0" placeholder="0.00" required>
+      </div>
+      <div class="form-group">
+        <label>Zahlungsart</label>
+        <div class="payment-methods">
+          <button type="button" class="pay-btn selected" data-method="bar" onclick="selectPayment(this)">💵 Bar</button>
+          <button type="button" class="pay-btn" data-method="karte" onclick="selectPayment(this)">💳 Karte</button>
+          <button type="button" class="pay-btn" data-method="ueberweisung" onclick="selectPayment(this)">🏦 Überw.</button>
+          <button type="button" class="pay-btn" data-method="offen" onclick="selectPayment(this)">📋 Offen</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notiz</label>
+        <input type="text" id="pay-note" placeholder="z.B. Anzahlung">
+      </div>
+      <button type="submit" class="btn btn-success">💾 Speichern</button>
+    </form>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-lightbox" onclick="closeModal('modal-lightbox')" style="align-items:center;justify-content:center;">
+  <img id="lightbox-img" style="max-width:95%;max-height:90dvh;border-radius:12px;" onclick="event.stopPropagation()">
+</div>
+<script>
+let db={customers:[],visits:[],payments:[]};
+let tempPhotos=[];let selectedPaymentMethod='bar';let map=null;let mapMarkers=[];let currentFilter='all';
+const RECENT_DAYS=14;const WARN_DAYS=28;
+function init(){
+  loadData();detectDuplicates();initSignatureCanvas();setTodayDate();updateHeaderStats();renderRecent();
+  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(e=>console.log('SW:',e));
+  document.getElementById('search-input').addEventListener('input',debounce(renderCustomerList,200));
+  document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+    document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));c.classList.add('active');currentFilter=c.dataset.filter;renderCustomerList();
+  }));
+}
+function loadData(){try{db=JSON.parse(localStorage.getItem('glcrm'))||db;}catch(e){}}
+function saveData(){localStorage.setItem('glcrm',JSON.stringify(db));updateHeaderStats();detectDuplicates();}
+function clearAllData(){if(confirm('Wirklich ALLES löschen?')){db={customers:[],visits:[],payments:[]};saveData();renderRecent();renderCustomerList();alert('Gelöscht.');}}
+function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`glcrm-${new Date().toISOString().slice(0,10)}.json`;a.click();}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);saveData();renderRecent();renderCustomerList();alert('Backup geladen!');}catch(err){alert('Fehler.');}};r.readAsText(f);}
+function importCSV(e,type){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const text=reader.result;const lines=text.split('\n').filter(l=>l.trim());
+      if(lines.length<2){alert('CSV ist leer oder ungültig.');return;}
+      // parse header
+      const parseLine=line=>{const out=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){inQ=!inQ;}else if(c===','&&!inQ){out.push(cur.trim());cur='';}else{cur+=c;}}out.push(cur.trim());return out;};
+      const headers=parseLine(lines[0]);
+      let imported=0;
+      for(let i=1;i<lines.length;i++){
+        const vals=parseLine(lines[i]);
+        if(type==='customers'&&vals.length>=10){
+          const c={id:vals[0]||Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:vals[1]||'',shop:vals[2]||'',phone:vals[3]||'',email:vals[4]||'',address:vals[5]||'',lat:parseFloat(vals[6])||null,lng:parseFloat(vals[7])||null,title:vals[8]||'',role:vals[9]||'',recurring:vals[10]||'no',hasStand:vals[11]||'no',stock:parseInt(vals[12])||0,price1:parseFloat(vals[13])||0,price2:parseFloat(vals[14])||0,price3:parseFloat(vals[15])||0,debt:parseFloat(vals[16])||0,favorite:vals[17]==1||vals[17]==='1',lastVisit:vals[18]||null,createdAt:vals[19]||new Date().toISOString(),updatedAt:vals[20]||new Date().toISOString(),photos:[],signature:'',notes:'',bizCards:[],isDuplicate:false};
+          const exists=db.customers.some(x=>(c.shop&&x.shop&&x.shop.toLowerCase()===c.shop.toLowerCase())||(c.phone&&x.phone&&x.phone.replace(/\s/g,'')===c.phone.replace(/\s/g,'')&&c.phone)||(c.name&&x.name&&x.name.toLowerCase()===c.name.toLowerCase()));
+          if(!exists){db.customers.push(c);imported++;}
+        }else if(type==='visits'&&vals.length>=7){
+          const v={id:vals[0]||Date.now().toString(36),customerId:vals[1]||'',date:vals[2]||'',type:vals[3]||'präsentation',shop:vals[4]||'',qty:parseInt(vals[5])||0,amount:parseFloat(vals[6])||0,paid:parseFloat(vals[7])||0,unitPrice:parseFloat(vals[8])||0,notes:vals[9]||''};
+          db.visits.push(v);imported++;
+        }else if(type==='payments'&&vals.length>=5){
+          const p={id:vals[0]||Date.now().toString(36),customerId:vals[1]||'',date:vals[2]||'',amount:parseFloat(vals[3])||0,method:vals[4]||'bar',note:vals[5]||''};
+          db.payments.push(p);imported++;
+        }
+      }
+      saveData();renderCustomerList();renderRecent();alert(`Importiert: ${imported} ${type}.`);
+    }catch(err){alert('Fehler beim CSV-Import: '+err.message);}
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name)?.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const idx={home:0,customers:1,visit:2,sync:3,settings:4}[name]??0;
+  document.querySelectorAll('.nav-btn')[idx]?.classList.add('active');
+  if(name==='home'){renderRecent();setTimeout(initHomeMap,200);setTimeout(renderMonthView,300);}
+  if(name==='customers')renderCustomerList();
+  if(name==='visit')populateVisitCustomers();
+  if(name==='sync')showTable(document.querySelector('.chip[data-table=customers]'),'customers');
+}
+function daysSince(dateStr){if(!dateStr)return 9999;const d=new Date(dateStr);const now=new Date();return Math.floor((now-d)/(1000*60*60*24));}
+function getVisitAgeColor(days){if(days<14)return'#2A6B24';if(days<28)return'#C8A059';return'#C0392B';}
+function getTierPrice(c,orderNum){if(orderNum<=1&&c.price1)return c.price1;if(orderNum===2&&c.price2)return c.price2;if(orderNum>=3&&c.price3)return c.price3;return c.price1||0;}
+function getNextOrderDate(c){if(!c.recurring||c.recurring==='no')return null;const last=db.visits.filter(v=>v.customerId===c.id).sort((a,b)=>b.date>a.date?1:-1)[0];if(!last)return new Date().toISOString().slice(0,10);const d=new Date(last.date);if(c.recurring==='weekly')d.setDate(d.getDate()+7);if(c.recurring==='biweekly')d.setDate(d.getDate()+14);if(c.recurring==='monthly')d.setMonth(d.getMonth()+1);return d.toISOString().slice(0,10);}
+function isOverdue(nextDate){if(!nextDate)return false;return new Date(nextDate)<new Date();}
+function updateHeaderStats(){
+  const total=db.customers.length;const visits=db.visits.length;
+  const debt=db.customers.reduce((s,c)=>s+(c.debt||0),0);
+  const revenue=db.visits.reduce((s,v)=>s+(v.amount||0),0);
+  document.getElementById('stat-total').textContent=total;
+  document.getElementById('stat-visits').textContent=visits;
+  document.getElementById('stat-debt').textContent=debt.toFixed(2)+'€';
+  document.getElementById('stat-revenue').textContent=revenue.toFixed(0)+'€';
+}
+function renderPerformanceSummary(){
+  const el=document.getElementById('perf-summary');if(!el)return;
+  const list=db.customers.slice().sort((a,b)=>((b.revenue||0)-(a.revenue||0))).slice(0,6);
+  if(!list.length){el.innerHTML='<p style="color:var(--muted)">Noch keine Daten.</p>';return;}
+  let html='<div style="display:flex;flex-direction:column;gap:8px;">';
+  list.forEach((c,idx)=>{
+    const rev=c.revenue||0;const orders=c.orderCount||0;const max=list[0].revenue||1;
+    const pct=Math.max(5,(rev/max)*100);
+    html+=`<div style="display:flex;align-items:center;gap:10px;font-size:0.9rem;">
+      <div style="width:24px;text-align:center;color:var(--muted);">${idx+1}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;justify-content:space-between;"><span>${escapeHtml(c.shop||c.name)}</span><span style="color:var(--gold);">${rev.toFixed(0)}€</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--green),var(--gold));"></div></div>
+      </div>
+      <span class="badge badge-visit">${orders}x</span>
+    </div>`;
+  });
+  html+='</div>';el.innerHTML=html;
+}
+function renderCustomerList(){
+  const q=document.getElementById('search-input').value.toLowerCase();
+  let list=db.customers.slice();
+  if(q)list=list.filter(c=>[c.name,c.shop,c.address,c.phone].some(v=>(v||'').toLowerCase().includes(q)));
+  if(currentFilter==='visited')list=list.filter(c=>db.visits.some(v=>v.customerId===c.id));
+  if(currentFilter==='debt')list=list.filter(c=>c.debt>0);
+  if(currentFilter==='favorite')list=list.filter(c=>c.favorite);
+  if(currentFilter==='stand')list=list.filter(c=>c.hasStand==='yes');
+  if(currentFilter==='recurring')list=list.filter(c=>c.recurring&&c.recurring!=='no');
+  if(currentFilter==='chef')list=list.filter(c=>c.role==='chef');
+  if(currentFilter==='mitarbeiter')list=list.filter(c=>c.role==='mitarbeiter');
+  if(currentFilter==='duplicate')list=list.filter(c=>c.isDuplicate);
+  const container=document.getElementById('customer-list');
+  if(!list.length){container.innerHTML='<div class="empty-state"><div class="big">👤</div><p>Keine Kunden gefunden</p></div>';return;}
+  container.innerHTML=list.map(c=>{
+    const days=daysSince(c.lastVisit);const color=getVisitAgeColor(days);
+    const vc=db.visits.filter(v=>v.customerId===c.id).length;
+    const debtClass=c.debt>0?'':'ok';
+    const standBadge=c.hasStand==='yes'?'<span class="badge badge-stand">📢 Stand</span>':'';
+    const recBadge=c.recurring&&c.recurring!=='no'?'<span class="badge badge-visit">🔄 '+{weekly:'Wö.',biweekly:'2Wo.',monthly:'Mo.'}[c.recurring]+'</span>':'';
+    const roleBadge=c.role?'<span class="badge badge-paid">'+{chef:'👑Chef',mitarbeiter:'👤Mitarb.',manager:'📋Mgr',einkauf:'🛒Eink.'}[c.role]+'</span>':'';
+    const dupBadge=c.isDuplicate?'<span class="badge badge-debt">⚠️ Dup</span>':'';
+    const borderColor=c.isDuplicate?'#C0392B':color;
+    return `<div class="customer-item fade-in" onclick="openDetail('${c.id}')" ${c.isDuplicate?'style="border-color:#C0392B;"':''}>
+      <div class="avatar" style="border:2px solid ${borderColor};">${c.name.charAt(0).toUpperCase()}</div>
+      <div class="customer-info">
+        <div class="name">${escapeHtml(c.shop||c.name)} ${standBadge} ${recBadge} ${roleBadge} ${dupBadge}</div>
+        <div class="sub">${vc} Besuche · letzter: ${c.lastVisit||'nie'} · <span style="color:${color};">${days} Tage</span></div>
+      </div>
+      <span class="debt-badge ${debtClass}">${(c.debt||0).toFixed(2)}€</span>
+    </div>`;
+  }).join('');
+}
+function renderRecent(){
+  const container=document.getElementById('recent-list');
+  const recent=db.customers.slice().sort((a,b)=>(b.createdAt>a.createdAt?1:-1)).slice(0,8);
+  if(!recent.length){container.innerHTML='<div class="empty-state"><div class="big">🌱</div><p>Noch keine Kunden — drücke +</p></div>';return;}
+  container.innerHTML=recent.map(c=>{
+    const days=daysSince(c.lastVisit);const color=getVisitAgeColor(days);
+    const vc=db.visits.filter(v=>v.customerId===c.id).length;
+    return `<div class="customer-item fade-in" onclick="openDetail('${c.id}')">
+      <div class="avatar" style="border:2px solid ${color};">${c.name.charAt(0).toUpperCase()}</div>
+      <div class="customer-info"><div class="name">${escapeHtml(c.shop||c.name)}</div><div class="sub">${vc} Besuche</div></div>
+      <span class="debt-badge ${c.debt>0?'':'ok'}">${(c.debt||0).toFixed(2)}€</span>
+    </div>`;
+  }).join('');
+  renderPerformanceSummary();
+}
+function openNewCustomer(){
+  document.getElementById('customer-form').reset();document.getElementById('customer-form').dataset.editingId='';
+  tempPhotos=[];document.getElementById('photo-preview').innerHTML='';document.getElementById('biz-preview').innerHTML='';
+  clearSignature();openModal('modal-customer');
+}
+function saveCustomer(e){
+  e.preventDefault();
+  const name=document.getElementById('cust-name').value.trim();
+  const shop=document.getElementById('cust-shop').value.trim();
+  const phone=document.getElementById('cust-phone').value.trim();
+  const email=document.getElementById('cust-email').value.trim();
+  const address=document.getElementById('cust-address').value.trim();
+  // Duplicate check
+  const duplicates=db.customers.filter(c=>c.id!==(document.getElementById('customer-form').dataset.editingId||'') && (
+    (shop && c.shop && c.shop.toLowerCase()===shop.toLowerCase()) ||
+    (phone && c.phone && c.phone.replace(/\s/g,'')===phone.replace(/\s/g,'')) ||
+    (name && c.name && c.name.toLowerCase()===name.toLowerCase())
+  ));
+  if(duplicates.length>0){
+    const dupInfo=duplicates.map(d=>`• ${d.shop||d.name} (Tel: ${d.phone||'—'})`).join('\n');
+    const proceed=confirm(`⚠️ Mögliches Duplikat gefunden:\n\n${dupInfo}\n\nTrotzdem speichern?`);
+    if(!proceed)return;
+  }
+  const customer={
+    id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    name:document.getElementById('cust-name').value.trim(),shop:document.getElementById('cust-shop').value.trim(),
+    phone:document.getElementById('cust-phone').value.trim(),email:document.getElementById('cust-email').value.trim(),
+    address:document.getElementById('cust-address').value.trim(),web:document.getElementById('cust-web').value.trim(),
+    recurring:document.getElementById('cust-recurring').value,hasStand:document.getElementById('cust-stand').value,
+    title:document.getElementById('cust-title').value,role:document.getElementById('cust-role').value,
+    stock:parseInt(document.getElementById('cust-stock').value)||0,
+    price1:parseFloat(document.getElementById('cust-price1').value)||0,
+    price2:parseFloat(document.getElementById('cust-price2').value)||0,
+    price3:parseFloat(document.getElementById('cust-price3').value)||0,
+    notes:document.getElementById('cust-notes').value.trim(),
+    photos:[...tempPhotos],signature:document.getElementById('signature-canvas').toDataURL('image/png'),
+    bizCards:[],
+    lat:null,lng:null,debt:0,favorite:false,lastVisit:null,orderCount:0,revenue:0,
+    createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
+  };
+  db.customers.push(customer);saveData();tempPhotos=[];closeModal('modal-customer');renderCustomerList();renderRecent();showPage('customers');
+  if(customer.address)geocodeAddress(customer.address,customer.id);
+}
+function addPhoto(e){const files=Array.from(e.target.files||[]);files.forEach(file=>{const r=new FileReader();r.onload=()=>{tempPhotos.push(r.result);renderPhotoPreview();};r.readAsDataURL(file);});e.target.value='';}
+function renderPhotoPreview(){document.getElementById('photo-preview').innerHTML=tempPhotos.map(p=>`<img src="${p}" onclick="viewPhoto('${p.replace(/'/g,"\\'")}')">`).join('');}
+function addBizCard(e){
+  const files=Array.from(e.target.files||[]);
+  const cid=document.getElementById('customer-form').dataset.editingId;
+  if(!cid){alert('Bitte zuerst Kunden speichern.');e.target.value='';return;}
+  files.forEach(file=>{
+    const r=new FileReader();
+    r.onload=()=>{
+      const c=db.customers.find(x=>x.id===cid);
+      if(c){c.bizCards=c.bizCards||[];c.bizCards.push({data:r.result,addedAt:new Date().toISOString()});c.updatedAt=new Date().toISOString();saveData();renderBizCardPreview(c);}
+    };
+    r.readAsDataURL(file);
+  });
+  e.target.value='';
+}
+function renderBizCardPreview(c){
+  const el=document.getElementById('biz-preview');if(!el)return;
+  el.innerHTML=(c.bizCards||[]).map((b,i)=>`<div style="position:relative;display:inline-block;margin:4px;"><img src="${b.data}" style="width:120px;height:80px;object-fit:cover;border-radius:8px;border:2px solid var(--border);cursor:pointer;" onclick="viewPhoto('${b.data.replace(/'/g,"\\'")}')"><button onclick="removeBizCard('${c.id}',${i})" style="position:absolute;top:-6px;right:-6px;background:var(--red);color:white;border:none;border-radius:50%;width:20px;height:20px;font-size:0.8rem;cursor:pointer;line-height:1;">×</button><div style="font-size:0.7rem;color:var(--muted);margin-top:2px;">${new Date(b.addedAt).toLocaleDateString('de-DE')}</div></div>`).join('');
+}
+function removeBizCard(cid,index){
+  const c=db.customers.find(x=>x.id===cid);if(!c)return;
+  c.bizCards.splice(index,1);c.updatedAt=new Date().toISOString();saveData();renderBizCardPreview(c);
+}
+function viewPhoto(src){document.getElementById('lightbox-img').src=src;openModal('modal-lightbox');}
+function initSignatureCanvas(){
+  const canvas=document.getElementById('signature-canvas');let drawing=false;let ctx=canvas.getContext('2d');
+  function resize(){const rect=canvas.parentElement.getBoundingClientRect();canvas.width=rect.width;canvas.height=160;ctx.strokeStyle='#1A1A1E';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';}
+  resize();window.addEventListener('resize',resize);
+  function getPos(e){const rect=canvas.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-rect.left,y:t.clientY-rect.top};}
+  function start(e){e.preventDefault();drawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);}
+  function move(e){e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();}
+  function end(e){e.preventDefault();drawing=false;}
+  canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',move);canvas.addEventListener('mouseup',end);
+  canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',move,{passive:false});canvas.addEventListener('touchend',end);
+}
+function clearSignature(){const c=document.getElementById('signature-canvas');const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);}
+function previewGeocode(){const addr=document.getElementById('cust-address').value.trim();if(addr.length<5)return;geocodeAddress(addr,null);}
+function openDetail(id){
+  const c=db.customers.find(x=>x.id===id);if(!c)return;
+  const visits=db.visits.filter(v=>v.customerId===id).sort((a,b)=>b.date>a.date?1:-1);
+  const payments=db.payments.filter(p=>p.customerId===id);
+  const totalPaid=payments.reduce((s,p)=>s+(p.method==='offen'?0:p.amount),0);
+  const totalOwed=visits.reduce((s,v)=>s+(v.amount||0),0);
+  const debt=totalOwed-totalPaid;const days=daysSince(c.lastVisit);const color=getVisitAgeColor(days);
+  const nextDate=getNextOrderDate(c);const overdue=isOverdue(nextDate);
+  document.getElementById('detail-name').textContent=c.shop||c.name;
+  const dupCount=getDuplicateCount(c);
+  if(dupCount>0){
+    const dupList=db.customers.filter(x=>x.id!==c.id&&((c.shop&&x.shop&&x.shop.toLowerCase()===c.shop.toLowerCase())||(c.phone&&x.phone&&x.phone.replace(/\s/g,'')===c.phone.replace(/\s/g,''))||(c.name&&x.name&&x.name.toLowerCase()===c.name.toLowerCase()))).map(x=>`• ${x.shop||x.name} (Tel: ${x.phone||'—'})`).join('\n');
+    setTimeout(()=>alert(`⚠️ Mögliche Duplikate (${dupCount}):\n\n${dupList}\n\nBitte prüfe, ob einer davon gelöscht werden kann.`),300);
+  }
+  const roleIcon={chef:'👑',mitarbeiter:'👤',manager:'📋',einkauf:'🛒'}[c.role]||'';
+  const titlePrefix=c.title?c.title+' ':'';
+  let html=`<div class="card fade-in"><h3>📋 Kontakt</h3>
+    <p><strong>Name:</strong> ${roleIcon} ${titlePrefix?escapeHtml(titlePrefix):''}${escapeHtml(c.name)}</p>
+    <p><strong>Laden:</strong> ${escapeHtml(c.shop||'—')}</p>
+    ${c.phone?`<p><strong>Tel:</strong> <a href="tel:${c.phone}">${c.phone}</a></p>`:''}
+    ${c.email?`<p><strong>E-Mail:</strong> ${escapeHtml(c.email)}</p>`:''}
+    ${c.address?`<p><strong>Adresse:</strong> ${escapeHtml(c.address)}</p>`:''}
+    ${c.web?`<p><strong>Web:</strong> <a href="${escapeHtml(c.web)}" target="_blank">${escapeHtml(c.web)}</a></p>`:''}
+    <p><strong>Bestand:</strong> ${c.stock||0} Fl. · <strong>Preis:</strong> ${c.price1?c.price1.toFixed(2)+'€':'—'}/Fl.</p>
+    <p><strong>Schulden:</strong> <span style="color:${debt>0?'#C0392B':'#2A6B24'};font-weight:bold;">${debt.toFixed(2)}€</span></p>
+    <p><strong>Performance:</strong> ${visits.length} Besuche · ${totalOwed.toFixed(2)}€ Umsatz · avg ${visits.length?((totalOwed/visits.length)).toFixed(2)+'€':'—'}</p>
+    <p style="font-size:0.82rem;color:var(--muted);">Erstellt: ${c.createdAt?new Date(c.createdAt).toLocaleString('de-DE'):'—'} · Aktualisiert: ${c.updatedAt?new Date(c.updatedAt).toLocaleString('de-DE'):'—'}</p>
+    ${c.recurring&&c.recurring!=='no'?`<p><strong>Wiederkehrend:</strong> ${{weekly:'Wö.',biweekly:'2Wo.',monthly:'Mon.'}[c.recurring]} ${nextDate?'· Nächster: '+nextDate+(overdue?' <span style="color:#C0392B;">⚠️ Überfällig</span>':''):''}</p>`:''}
+    ${c.hasStand==='yes'?'<p><span class="badge badge-stand">📢 Hat Werbestand</span></p>':''}
+    ${c.notes?`<p style="color:var(--muted);font-style:italic;">„${escapeHtml(c.notes)}"</p>`:''}
+  </div>`;
+  html+=`<div style="display:flex;gap:8px;margin-bottom:16px;">
+    <button class="btn btn-primary" onclick="payCustomer('${c.id}')" style="flex:1;">💳 Zahlung</button>
+    <button class="btn btn-secondary" onclick="toggleFavorite('${c.id}')" style="flex:1;">${c.favorite?'⭐ Entfavorisieren':'⭐ Favorit'}</button>
+    <button class="btn btn-secondary" onclick="editCustomer('${c.id}')" style="flex:0.8;padding:10px;">✏️</button>
+  </div>`;
+  if(c.photos&&c.photos.length)html+=`<div class="detail-section"><h3>📸 Fotos</h3><div class="photo-grid">${c.photos.map(p=>`<img src="${p}" onclick="viewPhoto('${p.replace(/'/g,"\\'")}')">`).join('')}</div></div>`;
+  if(c.signature)html+=`<div class="detail-section"><h3>✍️ Unterschrift</h3><img src="${c.signature}" style="width:100%;border-radius:10px;background:white;padding:8px;"></div>`;
+  html+=`<div class="detail-section"><h3>📅 Besuchs-Historie (${visits.length})</h3>`;
+  if(!visits.length)html+='<p style="color:var(--muted)">Keine.</p>';
+  else visits.forEach(v=>{
+    const paidHere=payments.filter(p=>p.visitId===v.id).reduce((s,p)=>s+p.amount,0);
+    html+=`<div class="visit-item"><div><div class="shop">${escapeHtml(v.shop||'')}</div><div class="date">${v.date} · <span class="badge ${v.type==='bestellung'?'badge-visit':v.type==='lieferung'?'badge-debt':'badge-paid'}">${v.type}</span> · ${v.createdAt?'<span style="color:var(--muted);font-size:0.75rem;">'+new Date(v.createdAt).toLocaleString('de-DE')+'</span>':''}</div>${v.notes?`<div style="font-size:0.85rem;margin-top:4px;">${escapeHtml(v.notes)}</div>`:''}</div><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;"><div style="text-align:right;font-size:0.85rem;color:var(--muted);">${v.amount?`<div><strong>${v.amount.toFixed(2)}€</strong></div>`:''}${v.qty?`<div>${v.qty} Stk.</div>`:''}${paidHere?`<div style="color:#2A6B24;">+${paidHere.toFixed(2)}€</div>`:''}</div><div style="display:flex;gap:4px;"><button class="btn btn-secondary btn-small" onclick="event.stopPropagation();editVisit('${v.id}')" style="padding:6px 10px;min-height:auto;font-size:0.8rem;">✏️</button><button class="btn btn-danger btn-small" onclick="event.stopPropagation();deleteVisit('${v.id}')" style="padding:6px 10px;min-height:auto;font-size:0.8rem;">🗑️</button></div></div></div>`;
+  });
+  html+='</div>';
+  const pmtList=payments.sort((a,b)=>b.date>a.date?1:-1);
+  if(pmtList.length)html+=`<div class="detail-section"><h3>💰 Zahlungen</h3>${pmtList.map(p=>`<div class="visit-item"><div><div class="shop">${{bar:'💵',karte:'💳',ueberweisung:'🏦',offen:'📋'}[p.method]||'💰'} ${p.amount.toFixed(2)}€</div><div class="date">${p.date} ${p.note?'· '+escapeHtml(p.note):''}</div></div></div>`).join('')}</div>`;
+  if(c.lat&&c.lng)html+=`<div class="detail-section"><h3>🗺️ Standort</h3><div id="detail-map" style="height:250px;border-radius:10px;"></div></div>`;
+  html+=`<button class="btn btn-danger" onclick="deleteCustomer('${c.id}')" style="margin-top:16px;">🗑️ Löschen</button>`;
+  document.getElementById('detail-content').innerHTML=html;showPage('detail');
+  if(c.lat&&c.lng)setTimeout(()=>{const dm=L.map('detail-map').setView([c.lat,c.lng],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(dm);L.marker([c.lat,c.lng]).addTo(dm).bindPopup(escapeHtml(c.shop||c.name)).openPopup();},100);
+}
+function deleteCustomer(id){if(!confirm('Löschen?'))return;db.customers=db.customers.filter(c=>c.id!==id);db.visits=db.visits.filter(v=>v.customerId!==id);db.payments=db.payments.filter(p=>p.customerId!==id);saveData();showPage('customers');renderCustomerList();}
+function toggleFavorite(id){const c=db.customers.find(x=>x.id===id);if(c){c.favorite=!c.favorite;saveData();openDetail(id);}}
+function populateVisitCustomers(){
+  const sel=document.getElementById('visit-customer');sel.innerHTML='<option value="">— Kunde —</option>'+db.customers.map(c=>`<option value="${c.id}">${escapeHtml(c.shop||c.name)}</option>`).join('');
+  setTodayDate();
+}
+function onVisitCustomerChange(){
+  const cid=document.getElementById('visit-customer').value;const c=db.customers.find(x=>x.id===cid);
+  const hint=document.getElementById('price-hint');const priceInput=document.getElementById('visit-unit-price');
+  if(!c||!cid){hint.textContent='';priceInput.value='';return;}
+  const orderNum=(c.orderCount||0)+1;let tierPrice=getTierPrice(c,orderNum);
+  priceInput.placeholder=tierPrice?tierPrice.toFixed(2)+'€ (Staffel '+orderNum+')':'Auto';
+  hint.textContent=`Bisher ${c.orderCount||0} Bestellungen · Staffelpreis ${orderNum}: ${tierPrice?tierPrice.toFixed(2)+'€':'nicht gesetzt'}`;
+}
+function saveVisit(e){
+  e.preventDefault();
+  const cid=document.getElementById('visit-customer').value;const c=db.customers.find(x=>x.id===cid);
+  const visit={
+    id:Date.now().toString(36),customerId:cid,date:document.getElementById('visit-date').value,
+    type:document.getElementById('visit-type').value,shop:document.getElementById('visit-shop').value.trim(),
+    qty:parseInt(document.getElementById('visit-qty').value)||0,
+    amount:parseFloat(document.getElementById('visit-amount').value)||0,
+    paid:parseFloat(document.getElementById('visit-paid').value)||0,
+    notes:document.getElementById('visit-notes').value.trim(),unitPrice:parseFloat(document.getElementById('visit-unit-price').value)||0,
+    createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()
+  };
+  db.visits.push(visit);
+  if(c){
+    c.debt=(c.debt||0)+(visit.amount-visit.paid);c.lastVisit=visit.date;c.orderCount=(c.orderCount||0)+(visit.type==='bestellung'?1:0);c.revenue=(c.revenue||0)+(visit.amount||0);
+    saveData();
+  }
+  document.getElementById('visit-form').reset();setTodayDate();alert('Gespeichert!');updateHeaderStats();renderRecent();showPage('home');
+}
+function payCustomer(id){document.getElementById('pay-cust-id').value=id;document.getElementById('pay-amount').value='';document.getElementById('pay-note').value='';selectPaymentByMethod('bar');openModal('modal-payment');}
+function selectPayment(btn){document.querySelectorAll('.pay-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selectedPaymentMethod=btn.dataset.method;}
+function selectPaymentByMethod(m){selectedPaymentMethod=m;document.querySelectorAll('.pay-btn').forEach(b=>b.classList.toggle('selected',b.dataset.method===m));}
+function savePayment(e){
+  e.preventDefault();
+  const payment={
+    id:Date.now().toString(36),customerId:document.getElementById('pay-cust-id').value,amount:parseFloat(document.getElementById('pay-amount').value)||0,
+    method:selectedPaymentMethod,note:document.getElementById('pay-note').value.trim(),
+    date:new Date().toISOString().slice(0,10),
+    createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()
+  };
+  db.payments.push(payment);
+  const c=db.customers.find(x=>x.id===payment.customerId);
+  if(c&&payment.method!=='offen')c.debt=Math.max(0,(c.debt||0)-payment.amount);
+  saveData();closeModal('modal-payment');if(c)openDetail(c.id);updateHeaderStats();
+}
+function geocodeAddress(address,customerId){
+  if(!address)return;
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`).then(r=>r.json()).then(data=>{if(data&&data[0]){const c=db.customers.find(x=>x.id===customerId);if(c){c.lat=parseFloat(data[0].lat);c.lng=parseFloat(data[0].lon);saveData();}}}).catch(()=>{});
+}
+function initHomeMap(){
+  const mapEl=document.getElementById('home-map');if(!mapEl||mapEl._leaflet_id)return;
+  const coords=db.customers.filter(c=>c.lat&&c.lng);if(!coords.length)return;
+  const center=coords.reduce((s,c)=>[s[0]+c.lat,s[1]+c.lng],[0,0]);center[0]/=coords.length;center[1]/=coords.length;
+  map=L.map('home-map').setView(center,11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
+  db.customers.filter(c=>c.lat&&c.lng).forEach(c=>{
+    const days=daysSince(c.lastVisit);const color=getVisitAgeColor(days);
+    L.circleMarker([c.lat,c.lng],{radius:8,fillColor:color,color:'#fff',weight:2,fillOpacity:0.9}).addTo(map).bindPopup(`<b>${escapeHtml(c.shop||c.name)}</b><br>${days} Tage<br>${(c.debt||0).toFixed(2)}€ offen<br>${c.hasStand==='yes'?'<span style="color:#D35400;">📢 Stand</span>':''}`);
+  });
+}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+function escapeHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function setTodayDate(){const el=document.getElementById('visit-date');if(el)el.value=new Date().toISOString().slice(0,10);}
+function debounce(fn,ms){let t;return(...args)=>{clearTimeout(t);t=setTimeout(()=>fn(...args),ms);};}
+function exportCSV(type){
+  let blob,filename;
+  if(type==='customers'||type==='all'){
+    const headers=['ID','Name','Laden','Telefon','E-Mail','Adresse','Lat','Lng','Titel','Rolle','Wiederkehrend','Stand','Bestand','Preis1','Preis2','Preis3','Schulden','Favorit','LetzterBesuch','Erstellt','Aktualisiert'];
+    const rows=db.customers.map(c=>[c.id,c.name,c.shop,c.phone,c.email,c.address,c.lat,c.lng,c.title,c.role,c.recurring,c.hasStand,c.stock,c.price1,c.price2,c.price3,c.debt,c.favorite?1:0,c.lastVisit,c.createdAt,c.updatedAt].map(x=>`"${x}"`).join(','));
+    const csv=[headers.join(','),...rows].join('\n');blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});filename='kunden.csv';
+    if(type==='all')downloadBlob(blob,filename);
+  }
+  if(type==='visits'||type==='all'){
+    const headers=['ID','KundeID','Datum','Typ','Shop','Anzahl','Umsatz','Bezahlt','Stückpreis','Notizen'];
+    const rows=db.visits.map(v=>[v.id,v.customerId,v.date,v.type,v.shop,v.qty,v.amount,v.paid,v.unitPrice||0,v.notes].map(x=>`"${x}"`).join(','));
+    const csv=[headers.join(','),...rows].join('\n');
+    const blob2=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+    if(type==='all'){downloadBlob(blob2,'besuche.csv');return;}
+    blob=blob2;filename='besuche.csv';
+  }
+  if(type==='payments'||type==='all'){
+    const headers=['ID','KundeID','Datum','Betrag','Methode','Notiz'];
+    const rows=db.payments.map(p=>[p.id,p.customerId,p.date,p.amount,p.method,p.note].map(x=>`"${x}"`).join(','));
+    const csv=[headers.join(','),...rows].join('\n');
+    const blob2=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+    if(type==='all'){downloadBlob(blob2,'zahlungen.csv');return;}
+    blob=blob2;filename='zahlungen.csv';
+  }
+  if(blob)downloadBlob(blob,filename);
+}
+function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);}
+function syncToSheets(){
+  const url=document.getElementById('sync-url').value.trim();const sid=document.getElementById('sync-sheet-id').value.trim();
+  const status=document.getElementById('sync-status');
+  if(!url&&!sid){status.textContent='Bitte URL oder Sheet ID eingeben.';status.style.color='#C0392B';return;}
+  status.textContent='Sende…';status.style.color='var(--gold)';
+  const payload={customers:db.customers,visits:db.visits,payments:db.payments,timestamp:new Date().toISOString()};
+  if(sid&&!url){url=`https://docs.google.com/spreadsheets/d/${sid}/edit`;status.textContent='Nur Sheet ID — zum Live-Sync brauchst du die Apps Script URL.';status.style.color='#C8A059';return;}
+  fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(()=>{status.textContent='✅ Gesendet — prüfe dein Sheet!';status.style.color='#2A6B24';}).catch(()=>{status.textContent='❌ Fehler — prüfe URL.';status.style.color='#C0392B';});
+}
+function showTable(chip,type){
+  document.querySelectorAll('.chip[data-table]').forEach(c=>c.classList.remove('active'));chip.classList.add('active');
+  const container=document.getElementById('table-container');let html='';
+  if(type==='customers'){
+    html=`<table><thead><tr><th>Laden</th><th>Name</th><th>Ort</th><th>Telefon</th><th>Besuche</th><th>Umsatz</th><th>Schulden</th><th>Letzter</th><th>Wiederkehrend</th><th>Stand</th></tr></thead><tbody>`;
+    db.customers.forEach(c=>{
+      const vc=db.visits.filter(v=>v.customerId===c.id).length;
+      html+=`<tr><td>${escapeHtml(c.shop)}</td><td>${escapeHtml(c.name)}</td><td>${(c.address||'').split(',').slice(-1)[0]}</td><td>${c.phone||''}</td><td>${vc}</td><td>${(c.revenue||0).toFixed(2)}€</td><td style="color:${c.debt>0?'#C0392B':'#2A6B24'};">${(c.debt||0).toFixed(2)}€</td><td>${c.lastVisit||'—'}</td><td>${c.recurring&&c.recurring!=='no'?c.recurring:'—'}</td><td>${c.hasStand==='yes'?'📢':'—'}</td></tr>`;
+    });
+    html+='</tbody></table>';
+  }else if(type==='visits'){
+    html=`<table><thead><tr><th>Datum</th><th>Laden</th><th>Typ</th><th>Anzahl</th><th>Umsatz</th><th>Bezahlt</th><th>Notizen</th></tr></thead><tbody>`;
+    db.visits.slice().sort((a,b)=>b.date>a.date?1:-1).forEach(v=>{
+      html+=`<tr><td>${v.date}</td><td>${escapeHtml(v.shop)}</td><td><span class="badge ${v.type==='bestellung'?'badge-visit':v.type==='lieferung'?'badge-debt':'badge-paid'}">${v.type}</span></td><td>${v.qty||0}</td><td>${(v.amount||0).toFixed(2)}€</td><td>${(v.paid||0).toFixed(2)}€</td><td>${(v.notes||'').slice(0,50)}</td></tr>`;
+    });
+    html+='</tbody></table>';
+  }else if(type==='payments'){
+    html=`<table><thead><tr><th>Datum</th><th>Laden</th><th>Betrag</th><th>Methode</th><th>Notiz</th></tr></thead><tbody>`;
+    db.payments.slice().sort((a,b)=>b.date>a.date?1:-1).forEach(p=>{
+      const c=db.customers.find(x=>x.id===p.customerId);
+      html+=`<tr><td>${p.date}</td><td>${c?escapeHtml(c.shop||c.name):'?'}</td><td>${p.amount.toFixed(2)}€</td><td>${{bar:'💵',karte:'💳',ueberweisung:'🏦',offen:'📋'}[p.method]||p.method}</td><td>${escapeHtml(p.note)}</td></tr>`;
+    });
+    html+='</tbody></table>';
+  }
+  container.innerHTML=html||'<p style="color:var(--muted)">Keine Daten.</p>';
+}
+function detectDuplicates(){
+  const groups={};
+  db.customers.forEach(c=>{
+    const keys=[];
+    if(c.shop)keys.push('shop_'+c.shop.toLowerCase().trim());
+    if(c.phone)keys.push('phone_'+c.phone.replace(/\s/g,''));
+    if(c.name)keys.push('name_'+c.name.toLowerCase().trim());
+    keys.forEach(k=>{
+      if(!groups[k])groups[k]=[];
+      groups[k].push(c.id);
+    });
+  });
+  // Reset
+  db.customers.forEach(c=>c.isDuplicate=false);
+  // Mark
+  Object.values(groups).forEach(ids=>{
+    if(ids.length>1){
+      ids.forEach(id=>{
+        const c=db.customers.find(x=>x.id===id);
+        if(c)c.isDuplicate=true;
+      });
+    }
+  });
+}
+function getDuplicateCount(c){
+  if(!c.isDuplicate)return 0;
+  let count=0;
+  if(c.shop)count+=db.customers.filter(x=>x.id!==c.id&&x.shop&&x.shop.toLowerCase()===c.shop.toLowerCase()).length;
+  if(c.phone)count+=db.customers.filter(x=>x.id!==c.id&&x.phone&&x.phone.replace(/\s/g,'')===c.phone.replace(/\s/g,'')).length;
+  if(c.name)count+=db.customers.filter(x=>x.id!==c.id&&x.name&&x.name.toLowerCase()===c.name.toLowerCase()).length;
+  return count;
+}
+function renderMonthView(){
+  const container=document.getElementById('month-table');const chips=document.getElementById('month-chips');
+  if(!container||!chips)return;
+  const months=[];
+  const now=new Date();
+  for(let i=0;i<6;i++){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:d.toISOString().slice(0,7),label:d.toLocaleDateString('de-DE',{month:'long',year:'numeric'})});}
+  chips.innerHTML=months.map((m,i)=>`<div class="chip ${i===0?'active':''}" data-month="${m.key}" onclick="renderMonthTable(this,'${m.key}')">${m.label}</div>`).join('');
+  renderMonthTable(chips.querySelector('.chip'),months[0].key);
+}
+function renderMonthTable(chip,monthKey){
+  document.querySelectorAll('#month-chips .chip').forEach(c=>c.classList.remove('active'));if(chip)chip.classList.add('active');
+  const container=document.getElementById('month-table');
+  const visits=db.visits.filter(v=>v.date&&v.date.startsWith(monthKey)).sort((a,b)=>b.date>a.date?1:-1);
+  const customers=db.customers.slice();
+  if(!visits.length){container.innerHTML='<p style="color:var(--muted);padding:10px;">Keine Buchungen in diesem Monat.</p>';return;}
+  const dayMap={};
+  visits.forEach(v=>{
+    if(!dayMap[v.date])dayMap[v.date]={date:v.date,visits:[],total:0,qty:0,paid:0};
+    dayMap[v.date].visits.push(v);dayMap[v.date].total+=(v.amount||0);dayMap[v.date].qty+=(v.qty||0);dayMap[v.date].paid+=(v.paid||0);
+  });
+  const days=Object.values(dayMap).sort((a,b)=>a.date<b.date?1:-1);
+  let html='<table><thead><tr><th>Datum</th><th>Buchungen</th><th>Anzahl</th><th>Umsatz</th><th>Bezahlt</th><th>Offen</th><th>Salons</th></tr></thead><tbody>';
+  days.forEach(d=>{
+    const open=d.total-d.paid;
+    const shops=d.visits.map(v=>{const c=customers.find(x=>x.id===v.customerId);return c?escapeHtml(c.shop):'—';}).join(', ');
+    html+=`<tr><td><strong>${d.date}</strong></td><td>${d.visits.length}</td><td>${d.qty}</td><td>${d.total.toFixed(2)}€</td><td style="color:#2A6B24;">${d.paid.toFixed(2)}€</td><td style="color:${open>0?'#C0392B':'#2A6B24'};">${open.toFixed(2)}€</td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${shops.replace(/"/g,'&quot;')}">${shops}</td></tr>`;
+  });
+  const totalRev=visits.reduce((s,v)=>s+(v.amount||0),0);
+  const totalPaid=visits.reduce((s,v)=>s+(v.paid||0),0);
+  html+=`<tr style="background:var(--obsidian-mid);"><td><strong>∑ ${monthKey}</strong></td><td>${visits.length}</td><td>${visits.reduce((s,v)=>s+(v.qty||0),0)}</td><td><strong>${totalRev.toFixed(2)}€</strong></td><td>${totalPaid.toFixed(2)}€</td><td style="color:${totalRev-totalPaid>0?'#C0392B':'#2A6B24'};"><strong>${(totalRev-totalPaid).toFixed(2)}€</strong></td><td>${new Set(visits.map(v=>v.customerId)).size} Salons</td></tr>`;
+  html+='</tbody></table>';
+  container.innerHTML=html;
+}
+
+// ===== OCR =====
+function runOCR(e){
+  const file=e.target.files[0];if(!file)return;
+  const status=document.getElementById('ocr-status');
+  const result=document.getElementById('ocr-result');
+  status.textContent='🔍 Analysiere Bild…';status.style.color='var(--gold)';result.style.display='none';
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    try{
+      if(typeof Tesseract==='undefined'){status.textContent='❌ OCR-Modul nicht geladen — prüfe Internetverbindung.';status.style.color='#C0392B';return;}
+      const result=await Tesseract.recognize(reader.result,'deu+eng',{logger:m=>{if(m.status==='recognizing text'){const pct=Math.round((m.progress||0)*100);status.textContent=`📝 Texterkennung… ${pct}%`;}});
+      const text=result.data.text.trim();
+      document.getElementById('ocr-text').value=text;
+      result.style.display='block';status.textContent=`✅ Fertig — ${text.split('\n').length} Zeilen erkannt.`;status.style.color='#2A6B24';
+    }catch(err){status.textContent='❌ OCR fehlgeschlagen: '+err.message;status.style.color='#C0392B';}
+  };
+  reader.readAsDataURL(file);
+  e.target.value='';
+}
+function importOCRText(){
+  const text=document.getElementById('ocr-text').value.trim();
+  if(!text){alert('Kein Text zum Importieren.');return;}
+  const lines=text.split('\n').filter(l=>l.trim());
+  let imported=0;
+  lines.forEach(line=>{
+    // Try to parse structured data: "Name | Laden | Betrag | Datum"
+    const parts=line.split('|').map(s=>s.trim()).filter(Boolean);
+    if(parts.length>=2){
+      const name=parts[0];const shop=parts[1]||name;
+      // Check if customer exists
+      let c=db.customers.find(x=>x.name===name||x.shop===shop);
+      if(!c){
+        c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,shop,phone:'',email:'',address:'',lat:null,lng:null,title:'',role:'',recurring:'no',hasStand:'no',stock:0,price1:0,price2:0,price3:0,debt:0,favorite:false,lastVisit:null,createdAt:new Date().toISOString(),photos:[],signature:'',notes:'',bizCards:[],isDuplicate:false};
+        db.customers.push(c);imported++;
+      }
+      // If there's an amount, create a visit
+      const amountStr=parts.find(p=>/^\d+[.,]\d+$/.test(p)||/^\d+$/.test(p));
+      if(amountStr){
+        const amount=parseFloat(amountStr.replace(',','.'));
+        const dateStr=parts.find(p=>/^\d{4}-\d{2}-\d{2}$/.test(p)||/^\d{2}\.\d{2}\.\d{4}$/.test(p))||new Date().toISOString().slice(0,10);
+        db.visits.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,4),customerId:c.id,date:dateStr,type:'bestellung',shop:c.shop,qty:1,amount:amount||0,paid:0,unitPrice:0,notes:'OCR Import'});
+        c.orderCount=(c.orderCount||0)+1;c.revenue=(c.revenue||0)+(amount||0);c.debt=(c.debt||0)+(amount||0);c.lastVisit=dateStr;
+        imported++;
+      }
+    }
+  });
+  saveData();renderCustomerList();renderRecent();detectDuplicates();alert(`OCR Import: ${imported} Einträge erstellt.`);
+}
+
+// ===== EDIT CUSTOMER =====
+function editCustomer(id){
+  const c=db.customers.find(x=>x.id===id);if(!c)return;
+  const newName=prompt('Name:',c.name);
+  if(newName===null)return;
+  const newShop=prompt('Laden / Salon:',c.shop);
+  if(newShop===null)return;
+  const newPhone=prompt('Telefon:',c.phone||'');
+  const newEmail=prompt('E-Mail:',c.email||'');
+  const newAddress=prompt('Adresse:',c.address||'');
+  const newNotes=prompt('Notizen:',c.notes||'');
+  c.name=newName.trim()||c.name;c.shop=newShop.trim()||c.shop;
+  c.phone=newPhone?newPhone.trim():c.phone;c.email=newEmail?newEmail.trim():c.email;
+  c.address=newAddress?newAddress.trim():c.address;c.notes=newNotes?newNotes.trim():c.notes;
+  c.updatedAt=new Date().toISOString();
+  saveData();openDetail(id);
+}
+
+// ===== EDIT VISIT =====
+function editVisit(visitId){
+  const v=db.visits.find(x=>x.id===visitId);if(!v)return;
+  const newDate=prompt('Datum (YYYY-MM-DD):',v.date);
+  if(newDate===null)return;
+  const newAmount=prompt('Umsatz (€):',v.amount);
+  if(newAmount===null)return;
+  const newPaid=prompt('Bezahlt (€):',v.paid);
+  const newNotes=prompt('Notizen:',v.notes||'');
+  v.date=newDate.trim()||v.date;
+  v.amount=parseFloat(newAmount)||0;
+  v.paid=newPaid!==null?parseFloat(newPaid):v.paid;
+  v.notes=newNotes?newNotes.trim():v.notes;
+  v.updatedAt=new Date().toISOString();
+  // Recalc customer debt/revenue
+  const c=db.customers.find(x=>x.id===v.customerId);
+  if(c){const relatedVisits=db.visits.filter(x=>x.customerId===c.id);c.revenue=relatedVisits.reduce((s,x)=>s+(x.amount||0),0);c.debt=relatedVisits.reduce((s,x)=>s+(x.amount||0)-(x.paid||0),0);}
+  saveData();openDetail(v.customerId);
+}
+
+// ===== DELETE VISIT =====
+function deleteVisit(visitId){
+  if(!confirm('Besuch wirklich löschen?'))return;
+  const v=db.visits.find(x=>x.id===visitId);if(!v)return;
+  db.visits=db.visits.filter(x=>x.id!==visitId);
+  const c=db.customers.find(x=>x.id===v.customerId);
+  if(c){const relatedVisits=db.visits.filter(x=>x.customerId===c.id);c.orderCount=relatedVisits.filter(x=>x.type==='bestellung').length;c.revenue=relatedVisits.reduce((s,x)=>s+(x.amount||0),0);c.debt=relatedVisits.reduce((s,x)=>s+(x.amount||0)-(x.paid||0),0);if(relatedVisits.length)c.lastVisit=relatedVisits.sort((a,b)=>b.date>a.date?1:-1)[0].date;else c.lastVisit=null;}
+  saveData();if(c)openDetail(c.id);else{renderCustomerList();showPage('customers');}
+}
+
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
