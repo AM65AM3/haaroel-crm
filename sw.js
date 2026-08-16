@@ -28,12 +28,23 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   e.respondWith(
-    caches.match(req).then(r => r || fetch(req).then(res => {
-      if (res.status === 200) {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(req, clone));
+    caches.match(req).then(r => {
+      if (r) {
+        fetch(req).then(resp => {
+          if (resp.status === 200) {
+            const clone = resp.clone();
+            caches.open(CACHE).then(c => c.put(req, clone));
+          }
+        }).catch(() => {});
+        return r;
       }
-      return res;
-    }).catch(() => caches.match('./index.html')))
+      return fetch(req).then(res => {
+        if (res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(req, clone));
+        }
+        return res;
+      }).catch(() => caches.match('./index.html'));
+    })
   );
 });
