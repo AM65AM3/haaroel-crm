@@ -3,18 +3,26 @@
  * 1. Öffne https://script.google.com/
  * 2. Neues Projekt → füge dieses Skript ein
  * 3. Ändere SHEET_ID in deine tatsächliche Tabellen-ID
- * 4. Bereitstellen → "Neue Bereitstellung" → Typ: Web-App
+ * 4. Ändere SYNC_TOKEN unten in ein eigenes, geheimes Passwort
+ *    (dasselbe Token dann in der App unter Sync → "Sync-Token" eintragen)
+ * 5. Bereitstellen → "Neue Bereitstellung" → Typ: Web-App
  *    - Wer: Jeder
  *    - Zugriff: Jeder, auch anonym
- * 5. URL kopieren und in die App einfügen
+ *    (Das ist bei Apps Script Web Apps normal — die Absicherung läuft über
+ *    das SYNC_TOKEN unten, nicht über den Google-Zugriffslevel.)
+ * 6. URL kopieren und in die App einfügen
  */
 
 const SHEET_ID = 'DEINE_SHEET_ID_HIER';
+const SYNC_TOKEN = 'AENDERE_MICH_ZU_EINEM_GEHEIMEN_PASSWORT';
 const app = SpreadsheetApp.openById(SHEET_ID);
 
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
+    if (body.token !== SYNC_TOKEN) {
+      return ContentService.createTextOutput(JSON.stringify({ok: false, error: 'Unauthorized'})).setMimeType(ContentService.MimeType.JSON);
+    }
     const appId = body.appId;
     const payload = body.payload || {};
     const customers = payload.customers || [];

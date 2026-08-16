@@ -1,5 +1,5 @@
-const CACHE = 'glcrm-v5';
-const OLD_CACHES = ['glcrm-v1','glcrm-v2','glcrm-v3','glcrm-v4'];
+const CACHE = 'glcrm-v6';
+const OLD_CACHES = ['glcrm-v1','glcrm-v2','glcrm-v3','glcrm-v4','glcrm-v5'];
 const ASSETS = [
   './',
   './index.html',
