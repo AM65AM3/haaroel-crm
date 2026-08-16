@@ -799,6 +799,27 @@ function triggerSync(){
 document.addEventListener('DOMContentLoaded',init);
 window.addEventListener('online',function(){updateSyncStatus('Internet wieder da — sync automatisch');setTimeout(autoSync,1000)});
 window.addEventListener('offline',function(){updateSyncStatus('Kein Internet — Eingaben lokal gespeichert')});
+
+// Expose functions used in onclick attributes to global window scope
+window.showPage = showPage;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.openNewCustomer = openNewCustomer;
+window.saveCustomer = saveCustomer;
+window.openDetail = openDetail;
+window.editCustomer = editCustomer;
+window.deleteCustomer = deleteCustomer;
+window.openPayment = openPayment;
+window.savePayment = savePayment;
+window.triggerSync = triggerSync;
+window.saveSyncSettings = saveSyncSettings;
+window.exportData = exportData;
+window.importData = importData;
+window.clearAllData = clearAllData;
+window.selectPayment = selectPayment;
+window.showToast = showToast;
+window.renderMonthTable = renderMonthTable;
+window.selectMapCategory = selectMapCategory;
 </script>
 </body>
 </html>
