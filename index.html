@@ -828,7 +828,7 @@ function autoSync(){
   const payload={customers:customers,visits:visits,payments:payments};
   fetch(cfg.endpoint,{
     method:'POST',
-    headers:{'Content-Type':'application/json'},
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
     body:JSON.stringify({appId:cfg.appId,sheetId:cfg.sheetId,token:cfg.token||'',payload:payload})
   }).then(function(r){return r.json()}).then(function(res){
     if(res.ok){
