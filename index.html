@@ -273,8 +273,23 @@ const RECENT_DAYS=14;const WARN_DAYS=28;
 function init(){
   loadData();detectDuplicates();initSignatureCanvas();setTodayDate();updateHeaderStats();renderRecent();
   if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(function(e){console.log('SW:',e)});
-  document.getElementById('search-input').addEventListener('input',debounce(renderCustomerList,200));
-  document.querySelectorAll('.chip').forEach(function(c){c.addEventListener('click',function(){document.querySelectorAll('.chip').forEach(function(x){x.classList.remove('active')});c.classList.add('active');currentFilter=c.dataset.filter;renderCustomerList()})});
+  const searchInput=document.getElementById('search-input');
+  if(searchInput)searchInput.addEventListener('input',debounce(renderCustomerList,200));
+  document.querySelectorAll('.chip').forEach(function(c){
+    c.addEventListener('click',function(){
+      document.querySelectorAll('.chip').forEach(function(x){x.classList.remove('active')});
+      c.classList.add('active');
+      currentFilter=c.dataset.filter;
+      renderCustomerList();
+    });
+    c.addEventListener('touchend',function(e){
+      e.preventDefault();
+      c.click();
+    });
+  });
+  document.addEventListener('touchstart',function(e){
+    if(e.target.closest('button, .btn, .nav-btn, .fab, .chip, .customer-card, .visit-item, input, select, textarea, .modal-overlay, .close-btn')){e.stopPropagation()}
+  },true);
 }
 function loadData(){try{db=JSON.parse(localStorage.getItem('glcrm'))||db;}catch(e){}}
 function saveData(){

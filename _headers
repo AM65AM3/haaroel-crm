@@ -1,0 +1,26 @@
+/*
+  Cloudflare Pages _headers
+  Verhindert, dass HTML/JS cached wird → kein eingefrorenes UI nach Updates.
+*/
+/*
+  Cache-Control: no-store verhindert, dass iOS/Android/Windows alte
+  index.html oder sw.js weiterverwenden.
+*/
+/* API / Apps Script Proxy – falls später genutzt */
+/api/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, OPTIONS
+  Access-Control-Allow-Headers: Content-Type
+  Access-Control-Max-Age: 86400
+
+  /* HTML sofort aktualisieren */
+/index.html
+  Cache-Control: no-store, max-age=0
+
+  /* JS/CSS kurz cachen, damit Offline noch funktioniert */
+/* assets are loaded from CDNs, hier nur die App-Dateien */
+/sw.js
+  Cache-Control: no-store, max-age=0
+
+/manifest.json
+  Cache-Control: no-store, max-age=0
