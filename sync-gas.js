@@ -36,22 +36,42 @@ function doPost(e) {
       sheet.setFrozenRows(1);
     }
 
-    const rows = [];
+    const records = [];
     customers.forEach(function(c) {
-      rows.push(['customer', c.id, '', c.name||'', c.shop||'', c.phone||'', c.email||'', c.address||'', c.lat||'', c.lng||'', c.role||'', c.category||'', '', '', '', '', '', '', c.createdAt||'', c.updatedAt||'', 'true', appId]);
+      records.push(['customer', c.id, '', c.name||'', c.shop||'', c.phone||'', c.email||'', c.address||'', c.lat||'', c.lng||'', c.role||'', c.category||'', '', '', '', '', '', '', c.createdAt||'', c.updatedAt||'', 'true', appId]);
     });
     visits.forEach(function(v) {
-      rows.push(['visit', v.id, v.customerId||'', '', v.shop||'', '', '', '', '', '', '', '', v.date||'', v.type||'', v.amount||0, v.paid||0, v.qty||0, '', v.notes||'', v.createdAt||'', v.updatedAt||'', 'true', appId]);
+      records.push(['visit', v.id, v.customerId||'', '', v.shop||'', '', '', '', '', '', '', '', v.date||'', v.type||'', v.amount||0, v.paid||0, v.qty||0, '', v.notes||'', v.createdAt||'', v.updatedAt||'', 'true', appId]);
     });
     payments.forEach(function(p) {
-      rows.push(['payment', p.id, p.customerId||'', '', '', '', '', '', '', '', '', '', p.date||'', '', p.amount||0, '', '', p.method||'', p.note||'', p.createdAt||'', '', 'true', appId]);
+      records.push(['payment', p.id, p.customerId||'', '', '', '', '', '', '', '', '', '', p.date||'', '', p.amount||0, '', '', p.method||'', p.note||'', p.createdAt||'', p.updatedAt||'', 'true', appId]);
     });
 
-    if (rows.length > 0) {
-      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+    if (records.length > 0) {
+      const lastRow = sheet.getLastRow();
+      const existingKeys = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, 2).getValues() : [];
+      const rowByKey = {};
+      existingKeys.forEach(function(r, i) {
+        rowByKey[r[0] + '|' + r[1]] = i + 2;
+      });
+
+      const toAppend = [];
+      records.forEach(function(rec) {
+        const key = rec[0] + '|' + rec[1];
+        const rowNum = rowByKey[key];
+        if (rowNum) {
+          sheet.getRange(rowNum, 1, 1, rec.length).setValues([rec]);
+        } else {
+          toAppend.push(rec);
+        }
+      });
+
+      if (toAppend.length > 0) {
+        sheet.getRange(sheet.getLastRow() + 1, 1, toAppend.length, toAppend[0].length).setValues(toAppend);
+      }
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ok: true, message: rows.length + ' Zeilen gespeichert'})).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ok: true, message: records.length + ' Zeilen verarbeitet'})).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ok: false, error: err.message})).setMimeType(ContentService.MimeType.JSON);
   }
