@@ -1,16 +1,21 @@
 const CACHE = 'glcrm-v6';
 const OLD_CACHES = ['glcrm-v1','glcrm-v2','glcrm-v3','glcrm-v4','glcrm-v5'];
-const ASSETS = [
+const OWN_ASSETS = [
   './',
   './index.html',
   './manifest.json',
+];
+const CDN_ASSETS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
 ];
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS))
+    caches.open(CACHE)
+      .then(c => c.addAll(OWN_ASSETS).then(() => Promise.all(
+        CDN_ASSETS.map(u => c.add(u).catch(() => {}))
+      )))
       .then(() => caches.keys().then(keys => Promise.all(
         keys.filter(k => OLD_CACHES.includes(k)).map(k => caches.delete(k))
       )))
