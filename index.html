@@ -270,7 +270,7 @@ html{scroll-behavior:smooth}
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 let db={customers:[],visits:[],payments:[]};
-let tempPhotos=[];let selectedPaymentMethod='bar';let map=null;let mapMarkers=[];let currentFilter='all';let tempProofPhotos=[];let tempBizCards=[];
+let tempPhotos=[];let selectedPaymentMethod='bar';let map=null;let mapMarkers=[];let currentFilter='all';let tempProofPhotos=[];let tempBizCards=[];let syncInFlight=false;
 function compressImage(dataUrl,maxDim,quality){
   return new Promise(function(resolve){
     const img=new Image();
@@ -308,7 +308,11 @@ function init(){
     });
   });
 }
-function loadData(){try{db=JSON.parse(localStorage.getItem('glcrm'))||db;}catch(e){}}
+function loadData(){
+  try{db=JSON.parse(localStorage.getItem('glcrm'))||db;}catch(e){}
+  db.payments=db.payments||[];
+  db.payments.forEach(function(p){if(!p.updatedAt)p.updatedAt=p.createdAt||p.date||new Date().toISOString()});
+}
 function saveData(){
   try{
     localStorage.setItem('glcrm',JSON.stringify(db));
@@ -342,16 +346,16 @@ function importCSV(e,type){
       for(let i=1;i<lines.length;i++){
         const vals=parseLine(lines[i]);
         if(type==='customers'){
-          const c={id:col(vals,'id',Date.now().toString(36)+Math.random().toString(36).slice(2,6)),name:col(vals,'name',''),shop:col(vals,'shop',''),phone:col(vals,'phone',''),email:col(vals,'email',''),address:col(vals,'address',''),lat:parseFloat(col(vals,'lat',''))||null,lng:parseFloat(col(vals,'lng',''))||null,title:col(vals,'title',''),role:col(vals,'role',''),category:col(vals,'category',''),recurring:col(vals,'recurring','no'),hasStand:col(vals,'hasStand','no'),stock:parseInt(col(vals,'stock',''))||0,price1:parseFloat(col(vals,'price1',''))||0,price2:parseFloat(col(vals,'price2',''))||0,price3:parseFloat(col(vals,'price3',''))||0,debt:parseFloat(col(vals,'debt',''))||0,revenue:0,orderCount:0,favorite:col(vals,'favorite','')==1||col(vals,'favorite','')==='1',lastVisit:col(vals,'lastVisit',null),createdAt:col(vals,'createdAt',new Date().toISOString()),updatedAt:col(vals,'updatedAt',new Date().toISOString()),photos:[],signature:'',notes:'',bizCards:[],isDuplicate:false};
+          const c={id:col(vals,'id',crypto.randomUUID()),name:col(vals,'name',''),shop:col(vals,'shop',''),phone:col(vals,'phone',''),email:col(vals,'email',''),address:col(vals,'address',''),lat:parseFloat(col(vals,'lat',''))||null,lng:parseFloat(col(vals,'lng',''))||null,title:col(vals,'title',''),role:col(vals,'role',''),category:col(vals,'category',''),recurring:col(vals,'recurring','no'),hasStand:col(vals,'hasStand','no'),stock:parseInt(col(vals,'stock',''))||0,price1:parseFloat(col(vals,'price1',''))||0,price2:parseFloat(col(vals,'price2',''))||0,price3:parseFloat(col(vals,'price3',''))||0,debt:parseFloat(col(vals,'debt',''))||0,revenue:0,orderCount:0,favorite:col(vals,'favorite','')==1||col(vals,'favorite','')==='1',lastVisit:col(vals,'lastVisit',null),createdAt:col(vals,'createdAt',new Date().toISOString()),updatedAt:col(vals,'updatedAt',new Date().toISOString()),photos:[],signature:'',notes:'',bizCards:[],isDuplicate:false};
           if(!c.name){continue}
           const exists=db.customers.some(function(x){return(c.shop&&x.shop&&x.shop.toLowerCase()===c.shop.toLowerCase())||(c.phone&&x.phone&&x.phone.replace(/\s/g,'')===c.phone.replace(/\s/g,'')&&c.phone)||(c.name&&x.name&&x.name.toLowerCase()===c.name.toLowerCase())});
           if(!exists){db.customers.push(c);imported++;}
         }else if(type==='visits'){
-          const v={id:col(vals,'id',Date.now().toString(36)),customerId:col(vals,'customerId',''),date:col(vals,'date',''),type:col(vals,'type','präsentation'),shop:col(vals,'shop',''),qty:parseInt(col(vals,'qty',''))||0,amount:parseFloat(col(vals,'amount',''))||0,paid:parseFloat(col(vals,'paid',''))||0,unitPrice:parseFloat(col(vals,'unitPrice',''))||0,notes:col(vals,'notes','')};
+          const v={id:col(vals,'id',crypto.randomUUID()),customerId:col(vals,'customerId',''),date:col(vals,'date',''),type:col(vals,'type','präsentation'),shop:col(vals,'shop',''),qty:parseInt(col(vals,'qty',''))||0,amount:parseFloat(col(vals,'amount',''))||0,paid:parseFloat(col(vals,'paid',''))||0,unitPrice:parseFloat(col(vals,'unitPrice',''))||0,notes:col(vals,'notes','')};
           if(!v.customerId){continue}
           db.visits.push(v);imported++;
         }else if(type==='payments'){
-          const p={id:col(vals,'id',Date.now().toString(36)),customerId:col(vals,'customerId',''),date:col(vals,'date',''),amount:parseFloat(col(vals,'amount',''))||0,method:col(vals,'method','bar'),note:col(vals,'note','')};
+          const p={id:col(vals,'id',crypto.randomUUID()),customerId:col(vals,'customerId',''),date:col(vals,'date',''),amount:parseFloat(col(vals,'amount',''))||0,method:col(vals,'method','bar'),note:col(vals,'note','')};
           if(!p.customerId){continue}
           db.payments.push(p);imported++;
         }
@@ -434,7 +438,7 @@ function renderRecent(){
 function openNewCustomer(){document.getElementById('cust-id').value='';document.getElementById('cust-name').value='';document.getElementById('cust-shop').value='';document.getElementById('cust-phone').value='';document.getElementById('cust-email').value='';document.getElementById('cust-address').value='';document.getElementById('cust-role').value='chef';document.getElementById('cust-price1').value='0';document.getElementById('cust-price2').value='0';document.getElementById('cust-price3').value='0';document.getElementById('cust-stand').value='0';document.getElementById('cust-recurring').value='no';document.getElementById('cust-category').value='';tempPhotos=[];renderPhotoPreview();tempBizCards=[];renderBizPreview();clearSignature();openModal('modal-customer')}
 function saveCustomer(e){
   e.preventDefault();
-  const id=document.getElementById('cust-id').value||Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const id=document.getElementById('cust-id').value||crypto.randomUUID();
   const name=document.getElementById('cust-name').value.trim();
   const shop=document.getElementById('cust-shop').value.trim();
   const phone=document.getElementById('cust-phone').value.trim();
@@ -613,7 +617,7 @@ function saveVisit(e){
   const paid=parseFloat(document.getElementById('visit-paid').value)||0;
   const notes=document.getElementById('visit-note').value.trim();
   if(!customerId){alert('Bitte Kunde wählen.');return}
-  const visit={id:Date.now().toString(36),customerId:customerId,date:date,type:type,shop:db.customers.find(function(x){return x.id===customerId})?.shop||'',qty:qty,amount:amount,paid:paid,unitPrice:qty>0?amount/qty:0,notes:notes,proofPhotos:tempProofPhotos.slice(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  const visit={id:crypto.randomUUID(),customerId:customerId,date:date,type:type,shop:db.customers.find(function(x){return x.id===customerId})?.shop||'',qty:qty,amount:amount,paid:paid,unitPrice:qty>0?amount/qty:0,notes:notes,proofPhotos:tempProofPhotos.slice(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
   db.visits.push(visit);
   const c=db.customers.find(function(x){return x.id===customerId});
   recomputeCustomer(c);
@@ -629,7 +633,7 @@ function savePayment(e){
   const method=selectedPaymentMethod;
   const note=document.getElementById('pay-note').value.trim();
   if(!customerId){alert('Kunde fehlt.');return}
-  const payment={id:Date.now().toString(36),customerId:customerId,date:new Date().toISOString().slice(0,10),amount:amount,method:method,note:note,createdAt:new Date().toISOString()};
+  const payment={id:crypto.randomUUID(),customerId:customerId,date:new Date().toISOString().slice(0,10),amount:amount,method:method,note:note,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
   db.payments.push(payment);
   const c=db.customers.find(function(x){return x.id===customerId});
   recomputeCustomer(c);
@@ -738,9 +742,9 @@ function importOCRText(){
     if(parts.length>=2){
       const name=parts[0];const shop=parts[1]||'';const amountStr=parts[2]||'0';const dateStr=parts[3]||new Date().toISOString().slice(0,10);
       const amount=parseFloat(amountStr.replace(/[^\d.,]/g,'').replace(',','.'))||0;
-      const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:name,shop:shop,phone:'',email:'',address:'',lat:null,lng:null,title:'',role:'chef',recurring:'no',hasStand:'no',stock:0,price1:0,price2:0,price3:0,debt:0,revenue:0,orderCount:0,lastVisit:dateStr,favorite:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),photos:[],signature:'',notes:'',bizCards:[],isDuplicate:false};
+      const c={id:crypto.randomUUID(),name:name,shop:shop,phone:'',email:'',address:'',lat:null,lng:null,title:'',role:'chef',recurring:'no',hasStand:'no',stock:0,price1:0,price2:0,price3:0,debt:0,revenue:0,orderCount:0,lastVisit:dateStr,favorite:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),photos:[],signature:'',notes:'',bizCards:[],isDuplicate:false};
       db.customers.push(c);
-      if(amount>0){db.visits.push({id:Date.now().toString(36)+'v',customerId:c.id,date:dateStr,type:'präsentation',shop:shop,qty:0,amount:amount,paid:0,unitPrice:0,notes:'OCR Import',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()})}
+      if(amount>0){db.visits.push({id:crypto.randomUUID(),customerId:c.id,date:dateStr,type:'präsentation',shop:shop,qty:0,amount:amount,paid:0,unitPrice:0,notes:'OCR Import',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()})}
       imported++;
     }
   });
@@ -816,32 +820,38 @@ function escapeHtml(text){const div=document.createElement('div');div.textConten
 function setTodayDate(){const el=document.getElementById('visit-date');if(el)el.value=new Date().toISOString().slice(0,10)}
 function debounce(fn,delay){let t;return function(){clearTimeout(t);t=setTimeout(function(){fn.apply(this,arguments)},delay)}}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2500)}
-function syncToSheets(){showToast('Sync erfordert Google Apps Script Setup')}
 function autoSync(){
+  if(syncInFlight)return;
   if(!('serviceWorker'in navigator))return;
   if(!navigator.onLine)return;
   const cfg=getSyncConfig();
   if(!cfg.appId||!cfg.sheetId)return;
   const customers=db.customers.filter(function(c){return !c._synced}).map(function(c){return{id:c.id,name:c.name,shop:c.shop,phone:c.phone,email:c.email,address:c.address,lat:c.lat,lng:c.lng,role:c.role,category:c.category,createdAt:c.createdAt,updatedAt:c.updatedAt,photoCount:(c.photos||[]).length,bizCardCount:(c.bizCards||[]).length}});
   const visits=db.visits.filter(function(v){return !v._synced}).map(function(v){return{id:v.id,customerId:v.customerId,date:v.date,type:v.type,shop:v.shop,qty:v.qty,amount:v.amount,paid:v.paid,unitPrice:v.unitPrice,notes:v.notes,proofPhotoCount:(v.proofPhotos||[]).length,createdAt:v.createdAt,updatedAt:v.updatedAt}});
-  const payments=db.payments.filter(function(p){return !p._synced}).map(function(p){return{id:p.id,customerId:p.customerId,date:p.date,amount:p.amount,method:p.method,note:p.note,createdAt:p.createdAt}});
+  const payments=db.payments.filter(function(p){return !p._synced}).map(function(p){return{id:p.id,customerId:p.customerId,date:p.date,amount:p.amount,method:p.method,note:p.note,createdAt:p.createdAt,updatedAt:p.updatedAt}});
+  if(customers.length===0&&visits.length===0&&payments.length===0)return;
+  const cfgToken=cfg.token||'';
   const payload={customers:customers,visits:visits,payments:payments};
+  syncInFlight=true;
   fetch(cfg.endpoint,{
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({appId:cfg.appId,sheetId:cfg.sheetId,token:cfg.token||'',payload:payload})
+    body:JSON.stringify({appId:cfg.appId,sheetId:cfg.sheetId,token:cfgToken,payload:payload})
   }).then(function(r){return r.json()}).then(function(res){
     if(res.ok){
-      payload.customers.forEach(function(c){c._synced=true});
-      payload.visits.forEach(function(v){v._synced=true});
-      payload.payments.forEach(function(p){p._synced=true});
-      saveData();
+      const sentIds=new Set(customers.concat(visits,payments).map(function(x){return x.id}));
+      db.customers.forEach(function(c){if(sentIds.has(c.id))c._synced=true});
+      db.visits.forEach(function(v){if(sentIds.has(v.id))v._synced=true});
+      db.payments.forEach(function(p){if(sentIds.has(p.id))p._synced=true});
+      localStorage.setItem('glcrm',JSON.stringify(db));
       updateSyncStatus(res.message||'Sync erfolgreich');
     }else{
       updateSyncStatus('Sync fehlgeschlagen: '+(res.error||'Unbekannt'));
     }
   }).catch(function(){
     updateSyncStatus('Offline — wird später gesynct');
+  }).finally(function(){
+    syncInFlight=false;
   });
 }
 function getSyncConfig(){
