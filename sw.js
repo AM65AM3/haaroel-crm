@@ -1,9 +1,10 @@
-const CACHE = 'glcrm-v6';
-const OLD_CACHES = ['glcrm-v1','glcrm-v2','glcrm-v3','glcrm-v4','glcrm-v5'];
+const CACHE = 'glcrm-v7';
+const OLD_CACHES = ['glcrm-v1','glcrm-v2','glcrm-v3','glcrm-v4','glcrm-v5','glcrm-v6'];
 const OWN_ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './dexie.js',
 ];
 const CDN_ASSETS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
